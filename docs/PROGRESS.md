@@ -1,0 +1,40 @@
+# PROGRESS
+
+Newest entries at the top. The agent appends here; Viraj reads it at the start of each work block.
+
+## Status
+| Phase | Gate | Status |
+|---|---|---|
+| 0 Prep | Docker + FalkorDB + .env ready | done 2026-10-15 20:00 IST |
+| 1 Import | Question 1 answered from a script | |
+| 2 Agent | Question 1 works from the UI | |
+| 3 Depth | Questions 2 and 3, examples, deploy attempt | |
+| 4 Ship | README, video, submitted | |
+
+## Log
+<!-- YYYY-MM-DD HH:MM IST | task | result | next -->
+- 2026-10-15 20:00 IST | env check + hygiene + Phase 1a smoke green | WSL Ubuntu, Docker 29.8.2 reachable, .venv py3.12.13, compose ports 127.0.0.1 only, docs/ moved, DATA_DIR set, smoke OK; prior 17:35 STUCK resolved (Docker now in WSL) | Phase 1b slice files without DB
+- 2026-10-15 17:35 IST | Phase 1 task 1 env setup (partial) | venv+requirements+compose+placeholders+smoke script written; Docker missing so engine start + smoke run blocked | Viraj installs Docker Desktop, then rerun compose up + smoke
+
+## STUCK 2026-10-15 17:35 IST — FalkorDB engine start + smoke run
+- Goal: `docker compose up -d` then smoke_falkordb.py create/query/delete tiny graph.
+- Attempts (each with result):
+  1. `docker --version`, `docker compose version`, `docker info` -> `docker` not recognized; no Docker Desktop service/exe found. Result: engine absent.
+  2. Wrote smoke_falkordb.py (env-only config, no secrets) and ran it with .venv (falkordb 1.8.0 installed) -> ConnectionRefusedError WinError 10061; `docker compose up -d` fails same root cause. Result: blocked, no server.
+- Exact error / evidence: `docker : The term 'docker' is not recognized...`; `ConnectionRefusedError: [WinError 10061]` from redis connection to localhost:6379.
+- Top 2 hypotheses:
+  1. Docker Desktop simply not installed on this machine (most likely).
+  2. Installed but not on PATH / service not running (less likely; ProgramFiles path check negative).
+- Options (include "cut scope" and "simpler workaround"), with time cost:
+  - A. Viraj installs Docker Desktop for Windows + WSL2 backend, restarts, reruns two commands (~20-30 min incl. download).
+  - B. Simpler workaround: run FalkorDB via FalkorDB Cloud free instance and point FALKORDB_HOST at it for smoke only (~10 min, needs network + account; local compose stays for later).
+  - C. Cut scope: defer engine-dependent verification; continue with file-only tasks until Docker ready (0 min now, smoke debt carried).
+- Recommendation: A (local Docker is the guaranteed baseline per D9); C meanwhile — nothing else attempted until Viraj decides.
+
+## STUCK report template
+- Goal:
+- Attempts (each with result):
+- Exact error / evidence:
+- Top 2 hypotheses:
+- Options (include "cut scope" and "simpler workaround"), with time cost:
+- Recommendation:

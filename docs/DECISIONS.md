@@ -1,0 +1,33 @@
+# DECISIONS
+
+## Data facts (from the scan, so nobody re-scans)
+- Files: nodes-addresses 402,246 | nodes-entities 814,344 | nodes-intermediaries 26,768 | nodes-officers 771,315 | nodes-others 2,989 | relationships 3,339,267.
+- Relationships: node_id_start, node_id_end, rel_type, link, status, start_date, end_date, sourceID. All endpoints resolve to some node.
+- Core rel types: officer_of 1.72M, registered_address 833k, intermediary_of 599k. Soft types are small (similar 47k, same_name_as 104k, same_as 4k, ...).
+- Dev slice "Offshore Leaks": 278,693 nodes, 562,700 internal edges. "Panama Papers": 559,600 nodes, 721,822 edges. Slice by NODE sourceID, keep edges with both ends inside; ignore relationship sourceID (519k are empty).
+- Hubs: p99 entities-per-officer 16, per-address 29, per-intermediary 357. Max about 36k (Portcullis TrustNet address/officer, Morning Star intermediary). 782 officers link to >100 entities; 26 addresses to >1000.
+- Quirks: 1,139 IDs exist in both officers and intermediaries; 7,183 officer_of edges start from intermediary-only IDs; about 700 free-text role variants; some mojibake; dates are DD-MMM-YYYY; many empty fields.
+
+## D1 FalkorDB is central. If a feature works without it, the feature is wrong.
+## D2 Hub awareness
+Degree = how informative a link is, not whether a record is legitimate. Filter is configurable by node type, can be overridden by the user, and excluded hubs are shown in the explanation when they change the result. Degree = distinct neighbors, stored at import (core-only and all-edges counts).
+## D3 Rarity-weighted relevance score
+weight(v) = log((N + 1) / (degree(v) + 1)), N = nodes in the relevant population, degree over distinct neighbors. It is a connection relevance score, NOT a probability of kinship or wrongdoing. Show contributing nodes, edge types and degrees. Generate candidate paths with the hub filter inside the Cypher traversal, then rank the small set in Python. Do not assume FalkorDB has weighted shortest path: check the docs and test the installed version.
+## D4 ID overlap policy: OPEN (decide in 30 min on Phase 1)
+Count collisions inside the Offshore Leaks slice first. Options: (a) one node per ID with both labels when an ID appears in both files; (b) exclude edges touching colliding IDs and report the count. Never choose a record from rel_type alone. Document the policy in the README.
+## D5 Start with the Offshore Leaks slice; add Panama only after the end-to-end path works. Measure real memory and import time.
+## D6 Core edges default; soft edges opt-in and labeled "possible match". Keep raw link, status, dates, sourceID.
+## D7 Role normalization (initial taxonomy, keep raw text)
+Ownership: shareholder, owner, (ultimate) beneficial owner, beneficiary. Management: director, managing director, president, manager, chairman. Admin/legal: secretary, signatory, proxy, power of attorney, legal representative. Financial/compliance: auditor. Other/unknown: anything unclear. Never infer ultimate ownership from a single officer_of edge.
+## D8 MCP: our own small server with fixed, purpose-built tools (not a generic text-to-Cypher server), so thresholds and scoring live in code we control. Runs inside the same deployment as the agent. Not exposed publicly.
+## D9 Deployment: guaranteed baseline = one-command local setup + small sample + import script + demo video. Try a live demo on a free host with a curated slice. FalkorDB free cloud is 100MB RAM, stops after 1 idle day, deleted after 7: backup only.
+## D10 LLM use: development on Groq/OpenRouter; OpenAI only for the final demo; LLM picks tools and writes explanations, code does the graph work; cache demo answers; rate limit and daily cap on the public app.
+
+## D11 Module boundaries (cheap now, valuable later)
+Keep ingestion (CSV adapters and import) separate from the graph core (queries, scoring) and from the tool/MCP layer and the agent/UI. No Offshore-Leaks-specific logic inside scoring or tool code; dataset specifics live in the adapter and in config. Name tools generically (e.g. strongest_connection, shared_neighbors), not after the dataset. Do not build extra generality beyond these boundaries during the hackathon.
+## D12 Multi-client MCP demo
+The same MCP server is shown working from our own agent AND from external clients (opencode; Claude Code only if Viraj has access). Rules: tools are read-only; results are size-capped; tool names and descriptions are written so another model can pick the right tool; transport is local stdio (the client launches the server on Viraj's machine, FalkorDB in local Docker); nothing exposed publicly. Demo clients run from an EMPTY folder with only the MCP config, never from the repo (the repo's AGENTS.md would make them act as coders). Time box: 30 min. Record it for the video (30-45 s).
+
+## Open questions
+- Frontend choice (decide Phase 2)
+- Track 2 in or out (decide Phase 3)
