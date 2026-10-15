@@ -13,6 +13,7 @@ Newest entries at the top. The agent appends here; Viraj reads it at the start o
 
 ## Log
 <!-- YYYY-MM-DD HH:MM IST | task | result | next -->
+- 2026-10-15 20:12 IST | Phase 1b part 1 slice analysis (read-only, no DB) | scripts/analyze_slice.py stdlib-only, 14-line output: 278,693 unique slice nodes, 562,700 internal edges, 1,139 colliding IDs touching 53,011 edges, in-slice mismatch 0/0, peak 307MB/12s | Viraj confirms D4 option, then Phase 1b part 2 slice files
 - 2026-10-15 20:00 IST | env check + hygiene + Phase 1a smoke green | WSL Ubuntu, Docker 29.8.2 reachable, .venv py3.12.13, compose ports 127.0.0.1 only, docs/ moved, DATA_DIR set, smoke OK; prior 17:35 STUCK resolved (Docker now in WSL) | Phase 1b slice files without DB
 - 2026-10-15 17:35 IST | Phase 1 task 1 env setup (partial) | venv+requirements+compose+placeholders+smoke script written; Docker missing so engine start + smoke run blocked | Viraj installs Docker Desktop, then rerun compose up + smoke
 
