@@ -1,0 +1,7 @@
+.env
+data/
+runs/
+reports/
+__pycache__/
+.venv/
+node_modules/
