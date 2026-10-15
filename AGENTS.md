@@ -7,7 +7,7 @@ Read this fully at the start of every session. Details live in docs/ — open th
 - Product: an agent that investigates the public ICIJ Offshore Leaks data by following connections in a FalkorDB graph, ranks connections with an explainable rarity-weighted relevance score, and shows the path behind every answer.
 - Owner: Viraj (student). He codes with you and must be able to explain every query and design choice to judges.
 - Default stack (ask before changing): Python, FalkorDB (Docker), a Python MCP server exposing fixed graph tools, a LangGraph agent, FastAPI backend, lightweight web UI.
-- Plan: docs/PLAN.md | Decisions: docs/DECISIONS.md | Progress log: docs/PROGRESS.md | Queries: docs/QUERIES.md | AI disclosure: docs/AI_USAGE.md
+- Plan: docs/PLAN.md | Decisions: docs/DECISIONS.md | Progress log: docs/PROGRESS.md | Queries: docs/QUERIES.md | AI disclosure: docs/AI_USAGE.md | Handoff: docs/CONTEXT.md
 
 ## 2. Hard rules (breaking these can disqualify the project)
 1. DATE GATE. Run `date`. Before 2026-10-15 00:01 IST do read-only analysis and notes only: no import script, no agent, no app code, no git init.
@@ -25,6 +25,7 @@ Read this fully at the start of every session. Details live in docs/ — open th
 - Ask first before: adding a dependency, changing the graph model, overriding docs/DECISIONS.md, anything that costs money, deleting files.
 - No scope creep. New ideas go to the Ideas list in docs/PLAN.md, not into code.
 - Commit after each working milestone with a clear message. Never push unless asked.
+- After every task, update docs/CONTEXT.md (current state + any new decision, quirk or gotcha) so a newcomer can continue without chat history.
 - End each task with a DONE report: changed / how verified / why / next.
 
 ## 4. Time boxes and the stuck rule
