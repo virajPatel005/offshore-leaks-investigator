@@ -53,17 +53,29 @@ def search_entity(name, label=None, country=None, limit=10):
         raise ValueError(f"label must be one of {LABELS}")
     g = _db()
     ensure_search_indexes(g)
+    # Punctuation tokenizes loosely in RediSearch (a comma turned one query
+    # into 50 noisy hits) and quoted phrases raise syntax errors, so run both
+    # the raw and the punctuation-stripped form and union by node_id. Dots
+    # match fine raw, which is why both variants are kept.
+    clean = (name or "").replace('"', " ").strip()
+    stripped = re.sub(r"[^\w\s]", " ", clean)
+    stripped = re.sub(r"\s+", " ", stripped).strip()
+    terms = [t for t in dict.fromkeys([clean, stripped]) if t]
     per_label = max(limit, 10)
-    found, cypher = [], []
+    found, seen, cypher = [], set(), []
     for lab in labels:
-        # Country predicate is a separate query shape: a single WHERE with an
-        # empty-string comparison filtered out every row (no short-circuit on
-        # missing properties), so the branch stays in Python, not in Cypher.
-        qq = (Q_COUNTRY if country else Q) % (lab, per_label)
-        cypher.append(qq)
-        rows = g.query(qq, {"q": name, "country": country}, timeout=QUERY_TIMEOUT_MS).result_set
-        found.extend({"node_id": r[0], "name": r[1], "labels": r[2], "country_codes": r[3],
-                      "degree_core": r[4], "sourceID": r[5], "_score": r[6] or 0} for r in rows)
+        for term in terms:
+            # Country predicate is a separate query shape: a single WHERE with an
+            # empty-string comparison filtered out every row (no short-circuit on
+            # missing properties), so the branch stays in Python, not in Cypher.
+            qq = (Q_COUNTRY if country else Q) % (lab, per_label)
+            cypher.append(qq)
+            rows = g.query(qq, {"q": term, "country": country}, timeout=QUERY_TIMEOUT_MS).result_set
+            for r in rows:
+                if r[0] not in seen:
+                    seen.add(r[0])
+                    found.append({"node_id": r[0], "name": r[1], "labels": r[2], "country_codes": r[3],
+                                  "degree_core": r[4], "sourceID": r[5], "_score": r[6] or 0})
     norm = (name or "").casefold().strip()
     # Exact match first, then prefix, then full-text score; de-dupe by node_id.
     seen, ranked = set(), []

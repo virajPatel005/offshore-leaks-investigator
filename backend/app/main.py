@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -37,6 +37,7 @@ _hits = deque()
 
 class AskBody(BaseModel):
     question: str
+    rid: str | None = None
 
 
 def norm(q):
@@ -72,12 +73,19 @@ def _check_limits():
         raise HTTPException(429, "daily LLM call budget spent")
 
 
-async def _answer(question, on_step=None):
+async def _answer(question, on_step=None, rid=None, fresh=False):
+    """One source of truth per request: every response echoes rid + question.
+
+    Cache stores the question text but never a rid; fresh=True serves live
+    even on a cache hit (still writing the cache afterwards).
+    """
     key = norm(question)
     cache = _cache()
-    if key in cache:
+    if not fresh and key in cache:
         res = dict(cache[key])
         res["cached"] = True
+        res["rid"] = rid
+        res["question"] = question
         return res
     _check_limits()
     _hits.append(time.time())
@@ -95,10 +103,13 @@ async def _answer(question, on_step=None):
     with open(USAGE_FILE, "w", encoding="utf-8") as f:
         json.dump(u, f)
     if res.get("answer"):
-        cache[key] = res
+        res["question"] = question
+        cache[key] = {k: v for k, v in res.items() if k != "rid"}
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(cache, f, ensure_ascii=False)
     res["cached"] = False
+    res["rid"] = rid
+    res["question"] = question
     return res
 
 
@@ -120,18 +131,13 @@ def health():
 async def ask(body: AskBody):
     if not body.question or not body.question.strip():
         raise HTTPException(400, "empty question")
-    return await _answer(body.question)
+    return await _answer(body.question, rid=body.rid)
 
 
 @app.get("/ask/stream")
-async def ask_stream(question: str):
+async def ask_stream(question: str, rid: str | None = None, fresh: bool = False):
     if not question or not question.strip():
         raise HTTPException(400, "empty question")
-    key = norm(question)
-    if key in _cache():
-        async def cached():
-            yield f"data: {json.dumps({'type': 'final', 'result': _cache()[key] | {'cached': True}})}\n\n"
-        return StreamingResponse(cached(), media_type="text/event-stream")
 
     async def gen():
         queue, loop = asyncio.Queue(), asyncio.get_running_loop()
@@ -140,7 +146,9 @@ async def ask_stream(question: str):
         async def runner():
             nonlocal result, error
             try:
-                result = await _answer(question, on_step=lambda e: loop.call_soon_threadsafe(queue.put_nowait, e))
+                result = await _answer(question, fresh=fresh,
+                                       on_step=lambda e: loop.call_soon_threadsafe(queue.put_nowait, e),
+                                       rid=rid)
             except HTTPException as ex:
                 error = ex
             except Exception:
@@ -153,12 +161,12 @@ async def ask_stream(question: str):
             entry = await queue.get()
             if entry is None:
                 break
-            yield f"data: {json.dumps({'type': 'step', 'step': entry})}\n\n"
+            yield f"data: {json.dumps({'type': 'step', 'rid': rid, 'step': entry})}\n\n"
         await task
         if error is not None:
-            yield f"data: {json.dumps({'type': 'error', 'detail': error.detail})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'rid': rid, 'detail': error.detail})}\n\n"
         else:
-            yield f"data: {json.dumps({'type': 'final', 'result': result})}\n\n"
+            yield f"data: {json.dumps({'type': 'final', 'rid': rid, 'result': result})}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 

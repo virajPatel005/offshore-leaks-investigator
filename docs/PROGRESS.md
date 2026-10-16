@@ -13,6 +13,7 @@ Newest entries at the top. The agent appends here; Viraj reads it at the start o
 
 ## Log
 <!-- YYYY-MM-DD HH:MM IST | task | result | next -->
+- 2026-10-17 04:53 IST | Phase 2e bugfixes (4 LLM runs) | rid+echo contract + stale discard + fresh bypass (check_ask 8 PASS); score pass-through + mean header; search raw+stripped variants (Tsai exact first); empty-answer fallback; ambiguity id-guard + notices; no-path wording + country grounding (9s); UI state root cause was stale-server + render races | Re-grade TEST_QUESTIONS items
 - 2026-10-17 03:49 IST | TEST_QUESTIONS.md (Cypher-only, no LLM) | 20 questions in 5 tiers with tool sequences + expected outcomes (starred 5 for video, first-3 mapped to demo Qs); address text lives in address field (names empty on hub addresses) | Grade the agent + UI against it
 - 2026-10-17 03:44 IST | Phase 2d API+UI (no Q3/deploy/memory) | 61s = Groq 429 OTPM retries (code 0.5s); backend/app/main.py (POST /ask, SSE stream, /health, runs/cache.json, 300s timeout, 20/min, 100/day cap) + web/index.html (3 examples, SVG path, score/hubs/trace, banner); UI path: POST 3s uncached / 0s cached, SSE 5 steps+final 46s | Phase 3 questions 2+3
 - 2026-10-16 21:11 IST | Phase 2c agent (no UI) | backend/llm/client.py (provider switch, 8-call budget) + backend/agent/agent.py (LangGraph decide-act over MCP stdio, grounding check, runs/ JSON) + ask.py; Q1 len3 score9.35 3calls/61s clean, Q2 hub story 4-6calls/61s clean, Q3 no-record 2calls/2s clean; no wrong tool choices | Phase 3 questions 2+3 + UI

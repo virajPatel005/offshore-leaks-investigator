@@ -67,32 +67,47 @@ function traceHTML(trace) {
     (t.cypher ? `<pre><code>${esc(Array.isArray(t.cypher) ? t.cypher.join("\n---\n") : t.cypher)}</code></pre>` : "<i>no Cypher recorded</i>") +
     `</details>`).join("");
 }
+function norm(s) { return String(s || "").toLowerCase().split(/\s+/).filter(Boolean).join(" "); }
+// Single source of truth: cur is the only live request. Any response whose
+// rid is not cur is stale and discarded, so overlapping requests can never
+// mix panels. The box text is written only by chip clicks, never by responses.
+let cur = 0, es = null, ctl = null;
 async function ask(live) {
-  const q = document.getElementById("q").value, out = document.getElementById("out"), st = document.getElementById("status");
+  const box = document.getElementById("q"), out = document.getElementById("out"), st = document.getElementById("status");
+  const q = box.value, rid = String(++cur);
+  if (es) { es.close(); es = null; }
+  if (ctl) { ctl.abort(); ctl = null; }
   out.innerHTML = ""; st.textContent = "Working…";
   if (!live) {
-    const r = await (await fetch("/ask", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: q})})).json();
-    render(r, false);
+    ctl = new AbortController();
+    try {
+      const r = await (await fetch("/ask", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: q, rid}), signal: ctl.signal})).json();
+      if (rid === String(cur)) render(r, false, box.value);
+    } catch (e) { if (rid === String(cur)) st.textContent = "Request failed."; }
   } else {
-    const es = new EventSource("/ask/stream?question=" + encodeURIComponent(q));
+    es = new EventSource("/ask/stream?question=" + encodeURIComponent(q) + "&rid=" + encodeURIComponent(rid) + "&fresh=1");
     es.onmessage = e => {
       const m = JSON.parse(e.data);
+      if (m.rid !== String(cur)) return;
       if (m.type === "step") st.textContent = `Step ${m.step.step}: ${m.step.tool}…`;
-      else { es.close(); render(m.result, true); }
+      else { es.close(); es = null; render(m.result, true, box.value); }
     };
-    es.onerror = () => { es.close(); st.textContent = "Stream failed."; };
+    es.onerror = () => { es.close(); es = null; if (rid === String(cur)) st.textContent = "Stream failed."; };
   }
 }
-function render(r, wasStream) {
+function render(r, wasStream, boxText) {
+  // The cached badge shows only when the answer truly came from cache AND
+  // its stored question matches what is in the box right now.
+  const reallyCached = r.cached === true && norm(r.question) === norm(boxText);
   const st = document.getElementById("status"), out = document.getElementById("out");
-  st.textContent = (r.cached ? "[cached] " : "") + (wasStream ? "Live trace done." : "Done.");
+  st.textContent = (reallyCached ? "[cached] " : "") + (wasStream ? "Live trace done." : "Done.");
   const nodes = (r.evidence_path || {}).nodes || [], edges = (r.evidence_path || {}).edges || [];
   out.innerHTML =
-    `<div class="card"><b>Answer${r.cached ? " (cached)" : ""}</b>\n${esc(r.answer || JSON.stringify(r))}</div>` +
+    `<div class="card"><b>Answer${reallyCached ? " (cached)" : ""}</b>\n${esc(r.answer || JSON.stringify(r))}</div>` +
     (nodes.length ? `<div class="card"><b>Evidence path</b>${graphSVG(nodes, edges, r.excluded_hubs)}</div>` : "") +
-    ((r.score_breakdown || []).length ? `<div class="card"><b>Score breakdown (connection relevance)</b><table><tr><th>Node</th><th>Degree</th><th>Weight</th></tr>` +
+    ((r.score_breakdown || []).length ? `<div class="card"><b>Score breakdown (connection relevance — mean rarity over ${r.score_breakdown.length} intermediate node${r.score_breakdown.length === 1 ? "" : "s"})</b><table><tr><th>Node</th><th>Degree</th><th>Weight</th></tr>` +
       r.score_breakdown.map(d => `<tr><td>${esc(d.name || d.node_id)}</td><td>${d.degree_core}</td><td>${(+d.weight).toFixed(2)}</td></tr>`).join("") +
-      `</table>Total: ${(r.score ?? 0).toFixed ? (+r.score).toFixed(2) : r.score}</div>` : "") +
+      `</table>Total: ${r.score === null || r.score === undefined ? "n/a (no path)" : (+r.score).toFixed(2)}</div>` : "") +
     `<div class="card"><b>Excluded hubs</b>\n${(r.excluded_hubs || []).map(h => esc(`${h.name || h.node_id} (degree ${h.degree_core})`)).join("\n") || "none"}</div>` +
     `<div class="card"><b>How I got here</b>${traceHTML(r.trace)}<div style="color:#8b949e">${esc(r.limitations || "")}</div></div>`;
 }
