@@ -6,6 +6,8 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - falkordb-data:/data
+      # Slice CSVs only (never raw data): server reads file:// URIs from IMPORT_FOLDER.
+      - /home/viraj/data/icij/prepared:/var/lib/FalkorDB/import:ro
     restart: unless-stopped
 
 volumes:

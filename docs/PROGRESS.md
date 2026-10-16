@@ -13,6 +13,7 @@ Newest entries at the top. The agent appends here; Viraj reads it at the start o
 
 ## Log
 <!-- YYYY-MM-DD HH:MM IST | task | result | next -->
+- 2026-10-16 19:10 IST | Phase 1c LOAD CSV import (graph offshore) | scripts/load_graph.py: 4 indexes, 5 node files + merged dual-label, 6 edge files; unique nodes 278,693 OK, edges 562,700 OK, dirs OK, Portcullis core degree 37,338 OK, ~14s, container ~537MB; Q1-Q5 in QUERIES.md | Phase 1d hub-pruned traversal + weighted-path check, then 2 graph tools
 - 2026-10-15 20:49 IST | D4 CONFIRMED (a) + Phase 1b part 2 slice files (no DB) | D4 in DECISIONS.md; scripts/prepare_slice.py stdlib-only wrote 12 files to DATA_DIR/prepared (6 nodes + 6 edges, degree_core/all stored, role_category per D7, dates raw); nodes 278,693 CHECK OK, edges 562,700 CHECK OK, 305MB/21s | Viraj picks loader format, then Phase 1c import
 - 2026-10-15 20:24 IST | D4 name-comparison check (read-only, no DB) | scripts/check_collisions.py stdlib-only, 5-line output: 1139/1139 identical normalized names, country_codes 1139/1139 match, 0 differing hub-sized IDs, 118MB/11s | Viraj confirms D4, then Phase 1b part 2 slice files
 - 2026-10-15 20:12 IST | Phase 1b part 1 slice analysis (read-only, no DB) | scripts/analyze_slice.py stdlib-only, 14-line output: 278,693 unique slice nodes, 562,700 internal edges, 1,139 colliding IDs touching 53,011 edges, in-slice mismatch 0/0, peak 307MB/12s | Viraj confirms D4 option, then Phase 1b part 2 slice files
