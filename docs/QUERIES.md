@@ -37,3 +37,10 @@ Every Cypher query or graph algorithm the product depends on. This feeds the REA
 - Used by: loader verify. Purpose: confirm stored direction per type; Portcullis address core degree is 37,338 undirected distinct neighbors.
 - Query: `MATCH (x)-[r:officer_of]->(y) RETURN labels(x), labels(y) LIMIT 1`; `MATCH (a:Address {node_id: $id})-[r:officer_of|intermediary_of|registered_address]-(n) RETURN count(DISTINCT n)`
 - Measured: instant; degree check OK.
+### Q6: strongest-connection candidates + reference (backend/graph/strongest_connection.py)
+- Used by tool: strongest_connection. Purpose: shortest hub-respecting path between two node_ids, ranked by mean D3 rarity.
+- Why this shape: undirected shortestPath() is unsupported and directed misses backward edges; WHERE all() on var-length patterns filters after expanding through hubs (60s timeout next to a 36k hub), so candidates use exact-depth chains with a hub predicate on every intermediate node (prunes during expansion) and iterative deepening 1..max_hops. Score = mean log((N+1)/(degree_core+1)) over intermediate nodes (mean, not sum, so padding hops cannot raise the score); endpoints are fixed and contribute nothing.
+- Parameters: $s, $t node_ids; $hub threshold (integers inlined: depth bounds, LIMIT).
+- Query (depth 2 shown): `MATCH (a {node_id: $s}), (b {node_id: $t}) MATCH (a)-[r1]-(m1)-[r2]-(b) WHERE m1.degree_core <= $hub RETURN [x IN [a, m1, b] | [x.node_id, x.name, labels(x), x.degree_core, x.sourceID]] AS nodes, [r IN [r1, r2] | [type(r), r.link, r.role_category]] AS edges LIMIT 5`
+- Reference (unfiltered exact shortest, detects hub-changed results): `MATCH (x {node_id: $s}), (y {node_id: $t}) CALL algo.SPpaths({sourceNode: x, targetNode: y, relDirection: 'both', maxLen: 4, pathCount: 1}) YIELD path RETURN path`
+- Measured: hub-respecting 2-hop 15ms-scale per depth; SPpaths reference 30–95ms; hub-blocked and no-path cases return in ms with excluded hubs listed.

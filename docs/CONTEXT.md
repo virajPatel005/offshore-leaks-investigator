@@ -1,9 +1,9 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 1 (Import). 1a done, 1b done (slice files), 1c done (graph `offshore` loaded: 278,693 nodes / 562,700 edges, verified).
-- Last completed: Phase 1c via scripts/load_graph.py (indexes, LOAD CSV nodes+edges, Q1-Q5 registered, ~14s).
-- Next: Phase 1d hub-pruned traversal + weighted-path check, then 2 graph tools.
+- Phase: 1 done (Import + Q1–Q6). Gate: demo question 1 answerable via try_strongest.py.
+- Last completed: Phase 1d — traversal test + backend/graph/strongest_connection.py (verified on 3 pairs).
+- Next: Phase 2 MCP server with 2–3 fixed tools.
 - Blocked: nothing.
 
 ## How to run things
@@ -22,6 +22,7 @@
 - Degree = undirected distinct neighbors, core edges only | address p50=1/p99=6/max=37338; entity 4/14/449; intermediary 3/150/36254; officer 2/11/36254 | method confirmed, numbers recorded
 - Slice files in DATA_DIR/prepared (6 nodes incl. merged set, 6 edges by rel_type) | counts match source analysis exactly; degree_core/all stored; role_category ownership=112397 management=119467 admin_legal=16322 financial=207 unknown=314307; dates raw strings | confirmed
 - Loader: LOAD CSV used (not bulk-loader: no new dep, dual-label control, explainable queries) | 4 node_id indexes, CREATE fast path, 8-seek OPTIONAL MATCH endpoint resolution, full load ~14s | confirmed, Q1-Q5 registered
+- Tool strongest_connection(s, t, hub, hops): exact-depth chains with per-intermediate hub predicates + iterative deepening; score = mean D3 rarity over intermediates; algo.SPpaths (both, pathCount 1) as unfiltered reference for hub-changed results | 3 pairs green; undirected shortestPath unsupported, var-length hub filter explodes at 36k hub | confirmed, Q6 registered
 
 ## Data quirks (running list)
 - 519k relationship rows have empty sourceID → slice by NODE sourceID, ignore relationship sourceID.
@@ -33,6 +34,7 @@
 ## Gotchas and fixes
 - falkordb 1.8.0: delete a test graph via `Graph.delete()` (`db.select_graph(name).delete()`); the client has no `delete_graph`.
 - `git commit -m "..."` message truncates through wsl quoting → write message to a file, `commit -F <file>`, then remove the file.
+- FalkorDB shortestPath() is directed-only and MATCH-scoped (WITH/RETURN form); undirected var-length MATCH with WHERE all() filters after hub expansion (60s timeout at 36k hub) — prune with per-hop predicates instead.
 - WSL `docker` CLI depends on Desktop's per-distro integration: if `wsl docker` fails but Windows `docker` works, re-enable Ubuntu integration (or restart Desktop); containers created while it was off can carry empty bind mounts → `--force-recreate` after fixing.
 - Keep outputs small: summaries only, never dump raw CSV rows (max 3 lines per file).
 
