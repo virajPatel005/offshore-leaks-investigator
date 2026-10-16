@@ -1,9 +1,9 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 (Agent). Three tools green end to end via try_tools.py (3.4s).
-- Last completed: Phase 2a — hardened strongest_connection + search_entity + shared_neighbors; Q7/Q8 registered.
-- Next: Phase 2b MCP server with the 3 fixed tools.
+- Phase: 2 (Agent). MCP server green over stdio; agent next.
+- Last completed: Phase 2b — backend/mcp_server/server.py (3 tools + schema resource, verified via SDK client).
+- Next: LangGraph agent picking tools + plain-language explanations.
 - Blocked: nothing.
 
 ## How to run things
@@ -24,6 +24,7 @@
 - Loader: LOAD CSV used (not bulk-loader: no new dep, dual-label control, explainable queries) | 4 node_id indexes, CREATE fast path, 8-seek OPTIONAL MATCH endpoint resolution, full load ~14s | confirmed, Q1-Q5 registered
 - Tool strongest_connection(s, t, hub, hops): exact-depth chains with per-intermediate hub predicates + iterative deepening; score = mean D3 rarity over intermediates; unbounded algo.SPpaths (Dijkstra) as unfiltered reference — bounded SPpaths uses DFS enumeration and timed out 60s, so it is never used with maxLen | confirmed, Q6 registered
 - Tools search_entity (fulltext name index per label, exact-first, size-capped) + shared_neighbors (hub filter inside pattern, hubs listed, grouped by edge-type pair) | confirmed, Q7/Q8 registered
+- MCP server stdio, SDK v2 pinned (mcp==2.3.0; v1 API renamed); name indexes at startup so calls stay read-only; 20s budget, truncation flags, limitations note | stdio check green; empty-folder external check NOT run | confirmed
 
 ## Data quirks (running list)
 - 519k relationship rows have empty sourceID → slice by NODE sourceID, ignore relationship sourceID.

@@ -21,7 +21,7 @@ IMPORT_FOLDER=/var/lib/FalkorDB/import (load-time default, confirmed live via GR
 ## D6 Core edges default; soft edges opt-in and labeled "possible match". Keep raw link, status, dates, sourceID.
 ## D7 Role normalization (initial taxonomy, keep raw text)
 Ownership: shareholder, owner, (ultimate) beneficial owner, beneficiary. Management: director, managing director, president, manager, chairman. Admin/legal: secretary, signatory, proxy, power of attorney, legal representative. Financial/compliance: auditor. Other/unknown: anything unclear. Never infer ultimate ownership from a single officer_of edge.
-## D8 MCP: our own small server with fixed, purpose-built tools (not a generic text-to-Cypher server), so thresholds and scoring live in code we control. Runs inside the same deployment as the agent. Not exposed publicly.
+## D8 MCP: our own small server with fixed, purpose-built tools (not a generic text-to-Cypher server), so thresholds and scoring live in code we control. Runs inside the same deployment as the agent. Not exposed publicly. Built on MCP Python SDK v2 (mcp==2.3.0 pinned; v1 FastMCP API was renamed); name full-text indexes are created at server startup so every tool call stays read-only.
 ## D9 Deployment: guaranteed baseline = one-command local setup + small sample + import script + demo video. Try a live demo on a free host with a curated slice. FalkorDB free cloud is 100MB RAM, stops after 1 idle day, deleted after 7: backup only.
 ## D10 LLM use: development on Groq/OpenRouter; OpenAI only for the final demo; LLM picks tools and writes explanations, code does the graph work; cache demo answers; rate limit and daily cap on the public app.
 
