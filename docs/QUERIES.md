@@ -44,3 +44,16 @@ Every Cypher query or graph algorithm the product depends on. This feeds the REA
 - Query (depth 2 shown): `MATCH (a {node_id: $s}), (b {node_id: $t}) MATCH (a)-[r1]-(m1)-[r2]-(b) WHERE m1.degree_core <= $hub RETURN [x IN [a, m1, b] | [x.node_id, x.name, labels(x), x.degree_core, x.sourceID]] AS nodes, [r IN [r1, r2] | [type(r), r.link, r.role_category]] AS edges LIMIT 5`
 - Reference (unfiltered exact shortest, detects hub-changed results): `MATCH (x {node_id: $s}), (y {node_id: $t}) CALL algo.SPpaths({sourceNode: x, targetNode: y, relDirection: 'both', maxLen: 4, pathCount: 1}) YIELD path RETURN path`
 - Measured: hub-respecting 2-hop 15ms-scale per depth; SPpaths reference 30–95ms; hub-blocked and no-path cases return in ms with excluded hubs listed.
+### Q7: name search via full-text index (backend/graph/search_entity.py)
+- Used by tool: search_entity. Purpose: find Entity/Officer/Intermediary nodes by name; exact matches first.
+- Why this shape: MATCH+CONTAINS cannot use the index (known FalkorDB limitation), so search goes through the procedure; a single WHERE with an empty-string country comparison filtered out every row (no short-circuit on missing properties), hence the country predicate is a separate query shape built in Python.
+- Parameters: $q search text; $country code or omitted (LIMIT inlined).
+- Index: `CREATE FULLTEXT INDEX FOR (n:Entity) ON (n.name)` (once per label; error "already indexed" means done)
+- Query: `CALL db.idx.fulltext.queryNodes('Entity', $q) YIELD node, score RETURN node.node_id, node.name, labels(node), node.country_codes, node.degree_core, node.sourceID, score LIMIT 10`
+- Measured: instant on 278k nodes; 'Portcullis' returns ranked candidates.
+### Q8: shared neighbors with hub filter (backend/graph/shared_neighbors.py)
+- Used by tool: shared_neighbors. Purpose: common neighbors of two nodes for "shared officer and non-hub address" questions; caller filters by label.
+- Why this shape: the hub predicate sits on the shared node inside the pattern; hubs among common neighbors come from a second query so they are listed, never silently dropped. Endpoints exempt (n <> endpoints guards loops).
+- Parameters: $x, $y node_ids; $hub threshold (LIMIT inlined).
+- Query: `MATCH (a {node_id: $x}), (b {node_id: $y}) MATCH (a)-[r1]-(n)-[r2]-(b) WHERE n.degree_core <= $hub AND n.node_id <> $x AND n.node_id <> $y RETURN n.node_id, n.name, labels(n), n.degree_core, n.sourceID, type(r1), r1.link, r1.role_category, type(r2), r2.link, r2.role_category LIMIT 20`
+- Measured: instant on tested pairs.
