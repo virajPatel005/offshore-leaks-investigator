@@ -13,6 +13,7 @@ Newest entries at the top. The agent appends here; Viraj reads it at the start o
 
 ## Log
 <!-- YYYY-MM-DD HH:MM IST | task | result | next -->
+- 2026-10-17 03:49 IST | TEST_QUESTIONS.md (Cypher-only, no LLM) | 20 questions in 5 tiers with tool sequences + expected outcomes (starred 5 for video, first-3 mapped to demo Qs); address text lives in address field (names empty on hub addresses) | Grade the agent + UI against it
 - 2026-10-17 03:44 IST | Phase 2d API+UI (no Q3/deploy/memory) | 61s = Groq 429 OTPM retries (code 0.5s); backend/app/main.py (POST /ask, SSE stream, /health, runs/cache.json, 300s timeout, 20/min, 100/day cap) + web/index.html (3 examples, SVG path, score/hubs/trace, banner); UI path: POST 3s uncached / 0s cached, SSE 5 steps+final 46s | Phase 3 questions 2+3
 - 2026-10-16 21:11 IST | Phase 2c agent (no UI) | backend/llm/client.py (provider switch, 8-call budget) + backend/agent/agent.py (LangGraph decide-act over MCP stdio, grounding check, runs/ JSON) + ask.py; Q1 len3 score9.35 3calls/61s clean, Q2 hub story 4-6calls/61s clean, Q3 no-record 2calls/2s clean; no wrong tool choices | Phase 3 questions 2+3 + UI
 - 2026-10-16 20:29 IST | Phase 2b MCP server (no agent/UI) | backend/mcp_server/server.py on SDK v2 (mcp==2.3.0): 3 tools + graph-schema resource, stdio, 20s budget, truncation flags, limitations note; stdio check: 3 tools listed, resource 421 chars, calls 1610/1787/1093 chars; docs/MCP.md with empty-folder config, external check NOT run | LangGraph agent

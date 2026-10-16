@@ -2,9 +2,8 @@
 
 ## Current state
 - Phase: 2 done (Agent + API + UI answer Q1 end to end; gate met from the UI path).
-- Last completed: Phase 2d — 61s diagnosed as Groq 429 retries; FastAPI (ask/SSE/health/cache/limits) + web/index.html verified live.
-- Next: Phase 3 (questions 2+3, examples, deploy attempt).
-- Blocked: nothing.
+- Last completed: docs/TEST_QUESTIONS.md — 20 graded questions in 5 tiers (Cypher-only, no LLM).
+- Next: grade the agent + UI against the set, then Phase 3.
 
 ## How to run things
 - venv: `.venv` (system Python 3.12: `/usr/bin/python3.12 -m venv .venv`); `.venv/bin/pip install -r requirements.txt` (falkordb, python-dotenv).
@@ -41,6 +40,7 @@
 - FalkorDB shortestPath() is directed-only and MATCH-scoped (WITH/RETURN form); undirected var-length MATCH with WHERE all() filters after hub expansion (60s timeout at 36k hub) — prune with per-hop predicates instead. Bounded algo.SPpaths also uses DFS enumeration (timed out 60s); unbounded takes the Dijkstra fast path — never pass maxLen to the reference call.
 - MCP v2 Tool uses input_schema (snake_case); empty-string short-circuit missing-property filters fail silently — branch query shapes in Python; "already indexed" (not "already exists") is the idempotent fulltext message.
 - 61s agent runs = Groq 429 OTPM-1000 retries on qwen3-27b on_demand (code itself ~0.5s: startup 0.5s, search 0.0s, strongest 0.2s, trivial LLM 0.7s) — provider/model cause, not worked around; cache sidesteps repeats.
+- Address records carry street text in the address field with empty names — name search cannot resolve hub addresses; test set documents this instead of routing around it.
 - Docker Desktop can be fully down (no daemon): relaunch the per-user exe, then `docker compose up -d`; background servers need setsid to survive the shell (nohup alone died).
 - WSL `docker` CLI depends on Desktop's per-distro integration: if `wsl docker` fails but Windows `docker` works, re-enable Ubuntu integration (or restart Desktop); containers created while it was off can carry empty bind mounts → `--force-recreate` after fixing.
 - Keep outputs small: summaries only, never dump raw CSV rows (max 3 lines per file).

@@ -16,3 +16,4 @@ Tools: opencode (coding agent), models used through it (record the model name pe
 | 2026-10-16 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 2b MCP server + stdio client check + docs/MCP.md (no agent/UI, external check not run) | Pending: run the empty-folder opencode check (D12) |
 | 2026-10-16 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 2c agent (LangGraph+MCP stdio, groq provider) + ask.py, 3 name-based tests (no UI) | Pending: read one runs/*.json and confirm answer quality |
 | 2026-10-17 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 2d latency diagnosis (groq 429) + FastAPI/SSE + web UI, verified via UI path (no Q3/deploy/memory) | Pending: click through the UI and confirm readability on video |
+| 2026-10-17 | opencode / opencode/muse-spark-1.3-contributor-free | docs/TEST_QUESTIONS.md 20-question graded set (Cypher probes only, no LLM calls) | Pending: run the first-3 questions and grade pass/fail |
