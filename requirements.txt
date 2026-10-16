@@ -2,3 +2,5 @@ falkordb
 python-dotenv
 # Pinned: v1/v2 SDK APIs differ (v2 MCPServer); server.py targets v2.
 mcp==2.3.0
+langgraph==1.2.15
+openai==3.31.0

@@ -14,3 +14,4 @@ Tools: opencode (coding agent), models used through it (record the model name pe
 | 2026-10-16 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 1d traversal measurements + strongest_connection tool + try script + Q6 (no MCP/agent/UI) | Pending: review mean-score choice and per-hop hub pruning |
 | 2026-10-16 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 2a hardening + search_entity + shared_neighbors + try_tools + Q7/Q8 (no MCP/agent/UI) | Pending: try the demo pairs and confirm tool output shape |
 | 2026-10-16 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 2b MCP server + stdio client check + docs/MCP.md (no agent/UI, external check not run) | Pending: run the empty-folder opencode check (D12) |
+| 2026-10-16 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 2c agent (LangGraph+MCP stdio, groq provider) + ask.py, 3 name-based tests (no UI) | Pending: read one runs/*.json and confirm answer quality |

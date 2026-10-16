@@ -1,9 +1,9 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 (Agent). MCP server green over stdio; agent next.
-- Last completed: Phase 2b — backend/mcp_server/server.py (3 tools + schema resource, verified via SDK client).
-- Next: LangGraph agent picking tools + plain-language explanations.
+- Phase: 2 done (Agent answers Q1 end to end via ask.py). Gate: question 1 works — UI next.
+- Last completed: Phase 2c — LangGraph agent over MCP stdio + grounding + runs/ logs (3 name-based tests green).
+- Next: Phase 3 (questions 2+3, examples, deploy attempt) + minimal UI.
 - Blocked: nothing.
 
 ## How to run things
@@ -25,6 +25,7 @@
 - Tool strongest_connection(s, t, hub, hops): exact-depth chains with per-intermediate hub predicates + iterative deepening; score = mean D3 rarity over intermediates; unbounded algo.SPpaths (Dijkstra) as unfiltered reference — bounded SPpaths uses DFS enumeration and timed out 60s, so it is never used with maxLen | confirmed, Q6 registered
 - Tools search_entity (fulltext name index per label, exact-first, size-capped) + shared_neighbors (hub filter inside pattern, hubs listed, grouped by edge-type pair) | confirmed, Q7/Q8 registered
 - MCP server stdio, SDK v2 pinned (mcp==2.3.0; v1 API renamed); name indexes at startup so calls stay read-only; 20s budget, truncation flags, limitations note | stdio check green; empty-folder external check NOT run | confirmed
+- Agent ask.py (LangGraph decide-act, MCP stdio tools, groq): grounding checks ids/names/quotes against tool results (degrees + question echo + link terms exempt); MAX_LLM_CALLS_PER_RUN=8; runs/run-*.json per run | Q1/Q2/Q3 green | confirmed
 
 ## Data quirks (running list)
 - 519k relationship rows have empty sourceID → slice by NODE sourceID, ignore relationship sourceID.
@@ -37,7 +38,7 @@
 - falkordb 1.8.0: delete a test graph via `Graph.delete()` (`db.select_graph(name).delete()`); the client has no `delete_graph`.
 - `git commit -m "..."` message truncates through wsl quoting → write message to a file, `commit -F <file>`, then remove the file.
 - FalkorDB shortestPath() is directed-only and MATCH-scoped (WITH/RETURN form); undirected var-length MATCH with WHERE all() filters after hub expansion (60s timeout at 36k hub) — prune with per-hop predicates instead. Bounded algo.SPpaths also uses DFS enumeration (timed out 60s); unbounded takes the Dijkstra fast path — never pass maxLen to the reference call.
-- MATCH+CONTAINS cannot use full-text indexes (known limitation) — search only via db.idx.fulltext.queryNodes; one CREATE FULLTEXT INDEX per label; "already indexed" error means done.
+- MCP v2 Tool uses input_schema (snake_case); empty-string short-circuit missing-property filters fail silently — branch query shapes in Python; "already indexed" (not "already exists") is the idempotent fulltext message.
 - WSL `docker` CLI depends on Desktop's per-distro integration: if `wsl docker` fails but Windows `docker` works, re-enable Ubuntu integration (or restart Desktop); containers created while it was off can carry empty bind mounts → `--force-recreate` after fixing.
 - Keep outputs small: summaries only, never dump raw CSV rows (max 3 lines per file).
 
