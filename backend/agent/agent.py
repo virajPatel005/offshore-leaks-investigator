@@ -100,7 +100,7 @@ class S(TypedDict):
     output: dict
 
 
-def build_graph(session, schemas, llm):
+def build_graph(session, schemas, llm, hook=None):
     tools = [{"type": "function", "function": {"name": t.name, "description": t.description or "",
                                                "parameters": t.input_schema}} for t in schemas]
 
@@ -123,11 +123,14 @@ def build_graph(session, schemas, llm):
             payload = json.loads(res.content[0].text)
             messages.append({"role": "tool", "tool_call_id": tc.id,
                              "content": json.dumps(payload)[:4000]})
-            trace.append({"step": len(state["trace"]) + len(trace) + 1, "tool": tc.function.name,
-                          "args": json.loads(tc.function.arguments or "{}"),
-                          "cypher": payload.get("cypher"),
-                          "result_summary": _summarize(tc.function.name, payload)})
+            entry = {"step": len(state["trace"]) + len(trace) + 1, "tool": tc.function.name,
+                     "args": json.loads(tc.function.arguments or "{}"),
+                     "cypher": payload.get("cypher"),
+                     "result_summary": _summarize(tc.function.name, payload)}
+            trace.append(entry)
             evidence.append(payload)
+            if hook is not None:
+                hook(entry)
         return {"messages": messages, "trace": trace, "evidence": evidence}
 
     def route(state):
@@ -167,14 +170,14 @@ def build_graph(session, schemas, llm):
     return g.compile()
 
 
-async def arun(question):
+async def arun(question, on_step=None):
     params = StdioServerParameters(command=SERVER_CMD[0], args=SERVER_CMD[1:], cwd=".")
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
             schemas = (await session.list_tools()).tools
             llm = LLMClient()
-            app = build_graph(session, schemas, llm)
+            app = build_graph(session, schemas, llm, hook=on_step)
             state = {"messages": [{"role": "user", "content": question}],
                      "trace": [], "evidence": [], "answer": "", "output": {}}
             out = await app.ainvoke(state)
@@ -187,5 +190,5 @@ async def arun(question):
             return result
 
 
-def run(question):
-    return asyncio.run(arun(question))
+def run(question, on_step=None):
+    return asyncio.run(arun(question, on_step=on_step))

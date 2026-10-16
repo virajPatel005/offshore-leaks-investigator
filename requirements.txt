@@ -4,3 +4,5 @@ python-dotenv
 mcp==2.3.0
 langgraph==1.2.15
 openai==3.31.0
+fastapi==0.143.3
+uvicorn==0.54.0

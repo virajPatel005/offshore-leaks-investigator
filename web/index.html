@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offshore Investigator</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background: #0d1117; color: #e6edf3; font-family: system-ui, sans-serif; margin: 0 auto; max-width: 960px; padding: 16px; }
+  #banner { background: #3b2f00; border: 1px solid #9e7c00; padding: 10px; border-radius: 6px; margin-bottom: 16px; }
+  #q { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; }
+  button { margin: 6px 6px 6px 0; padding: 8px 12px; cursor: pointer; }
+  .ex { background: #161b22; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; }
+  #askbtn { background: #1f6feb; border: none; color: white; border-radius: 6px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 12px; white-space: pre-wrap; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #30363d; padding: 6px; text-align: left; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; }
+  code { font-size: 0.85rem; }
+  .hubtag { fill: #ff7b72; font-size: 11px; font-weight: bold; }
+  #status { color: #8b949e; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="banner">Appearing in the ICIJ Offshore Leaks database does not imply wrongdoing.</div>
+<h1>Offshore Investigator</h1>
+<input id="q" placeholder="Ask about a connection…" size="80">
+<div>
+  <button class="ex" data-q="What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?">Clean pair</button>
+  <button class="ex" data-q="What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?">Hub-blocked pair</button>
+  <button class="ex" data-q="What connects Zzxq Qqq Nonexistent to BRAVO ENTERPRISES LIMITED?">Unknown name</button>
+  <button id="askbtn">Ask (live trace)</button>
+</div>
+<div id="status"></div>
+<div id="out"></div>
+<script>
+// One-line justification: hand-rolled SVG needs no dependency, works offline in a recording, and the layout code stays explainable.
+const COLORS = {Entity: "#58a6ff", Officer: "#3fb950", Intermediary: "#d29922", Address: "#bc8cff"};
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+function graphSVG(nodes, edges, hubs) {
+  const hubIds = new Set((hubs || []).map(h => h.node_id));
+  const W = 900, X0 = 90, DX = Math.min(260, (W - 180) / Math.max(1, nodes.length - 1 || 1));
+  let s = `<svg viewBox="0 0 ${W} 190" width="100%" role="img" aria-label="evidence path graph">`;
+  nodes.forEach((n, i) => {
+    const x = X0 + i * DX, isHub = hubIds.has(n.node_id);
+    if (i) {
+      const x0 = X0 + (i - 1) * DX;
+      s += `<line x1="${x0 + 60}" y1="80" x2="${x - 60}" y2="80" stroke="#8b949e" stroke-width="2" marker-end="url(#ar)"/>`;
+      s += `<text x="${(x0 + x) / 2}" y="70" fill="#c9d1d9" font-size="12" text-anchor="middle">${esc((edges[i - 1] || {}).rel_type || "")}</text>`;
+    }
+  });
+  s += `<defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#8b949e"/></marker></defs>`;
+  nodes.forEach((n, i) => {
+    const x = X0 + i * DX, lab = (n.labels || [])[0] || "?", isHub = hubIds.has(n.node_id);
+    const col = COLORS[lab] || "#8b949e";
+    s += `<rect x="${x - 60}" y="50" width="120" height="60" rx="8" fill="#0d1117" stroke="${col}" stroke-width="${isHub ? 4 : 2}"/>`;
+    s += `<text x="${x}" y="72" fill="${col}" font-size="12" text-anchor="middle">${esc((n.name || n.node_id).slice(0, 20))}</text>`;
+    s += `<text x="${x}" y="88" fill="#8b949e" font-size="11" text-anchor="middle">${esc(lab)} · deg ${n.degree_core ?? "?"}</text>`;
+    if (isHub) s += `<text x="${x}" y="104" text-anchor="middle" class="hubtag">HUB</text>`;
+  });
+  return s + "</svg>";
+}
+function traceHTML(trace) {
+  return (trace || []).map(t =>
+    `<details><summary>Step ${t.step}: ${esc(t.tool)} <code>${esc(JSON.stringify(t.args))}</code> → ${esc(JSON.stringify(t.result_summary))}</summary>` +
+    (t.cypher ? `<pre><code>${esc(Array.isArray(t.cypher) ? t.cypher.join("\n---\n") : t.cypher)}</code></pre>` : "<i>no Cypher recorded</i>") +
+    `</details>`).join("");
+}
+async function ask(live) {
+  const q = document.getElementById("q").value, out = document.getElementById("out"), st = document.getElementById("status");
+  out.innerHTML = ""; st.textContent = "Working…";
+  if (!live) {
+    const r = await (await fetch("/ask", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: q})})).json();
+    render(r, false);
+  } else {
+    const es = new EventSource("/ask/stream?question=" + encodeURIComponent(q));
+    es.onmessage = e => {
+      const m = JSON.parse(e.data);
+      if (m.type === "step") st.textContent = `Step ${m.step.step}: ${m.step.tool}…`;
+      else { es.close(); render(m.result, true); }
+    };
+    es.onerror = () => { es.close(); st.textContent = "Stream failed."; };
+  }
+}
+function render(r, wasStream) {
+  const st = document.getElementById("status"), out = document.getElementById("out");
+  st.textContent = (r.cached ? "[cached] " : "") + (wasStream ? "Live trace done." : "Done.");
+  const nodes = (r.evidence_path || {}).nodes || [], edges = (r.evidence_path || {}).edges || [];
+  out.innerHTML =
+    `<div class="card"><b>Answer${r.cached ? " (cached)" : ""}</b>\n${esc(r.answer || JSON.stringify(r))}</div>` +
+    (nodes.length ? `<div class="card"><b>Evidence path</b>${graphSVG(nodes, edges, r.excluded_hubs)}</div>` : "") +
+    ((r.score_breakdown || []).length ? `<div class="card"><b>Score breakdown (connection relevance)</b><table><tr><th>Node</th><th>Degree</th><th>Weight</th></tr>` +
+      r.score_breakdown.map(d => `<tr><td>${esc(d.name || d.node_id)}</td><td>${d.degree_core}</td><td>${(+d.weight).toFixed(2)}</td></tr>`).join("") +
+      `</table>Total: ${(r.score ?? 0).toFixed ? (+r.score).toFixed(2) : r.score}</div>` : "") +
+    `<div class="card"><b>Excluded hubs</b>\n${(r.excluded_hubs || []).map(h => esc(`${h.name || h.node_id} (degree ${h.degree_core})`)).join("\n") || "none"}</div>` +
+    `<div class="card"><b>How I got here</b>${traceHTML(r.trace)}<div style="color:#8b949e">${esc(r.limitations || "")}</div></div>`;
+}
+document.querySelectorAll(".ex").forEach(b => b.onclick = () => { document.getElementById("q").value = b.dataset.q; ask(false); });
+document.getElementById("askbtn").onclick = () => ask(true);
+</script>
+</body>
+</html>
