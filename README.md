@@ -14,7 +14,7 @@ Built for the WeMakeDevs x FalkorDB **Graph Hacks** hackathon — Track 1: *Agen
 
 Open the UI (`http://127.0.0.1:8000`) and ask, for example:
 
-1. **The flagship cross-jurisdiction chain** — *"What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED.?"* → a clean 3-hop path: VGB company → HKG intermediary (Tricor Services Limited) → HKG address → HKG company; score ≈ **9.35** on the default `offshore` graph (≈ 10.45 on the union), no hubs needed. Two jurisdictions crossed, every hop explainable.
+1. **The flagship cross-jurisdiction chain** — *"What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED.?"* → a clean 3-hop path: VGB company → HKG intermediary (Tricor Services Limited) → HKG address → HKG company; score ≈ **9.35 (offshore)** (≈ **10.45 (icij)** on the union), no hubs needed. Two jurisdictions crossed, every hop explainable.
 2. **The hub story** — *"What is the strongest recorded connection between MAGN DEVELOPMENT LIMITED and MASS FAITH GROUP LTD.?"* (graph `icij`) → every route would run through **ORION HOUSE SERVICES (HK) LIMITED** (degree 7,016), so the tool reports **no hub-respecting path within the depth limit**, **lists the excluded hub with its degree**, and shows the unfiltered reference path so you can see *why the answer changed*. *(On `offshore` the same idea is Braggle Ltd. ↔ ASIAN DRAGON (BVI) LIMITED through the unnamed 37,338-degree Portcullis address.)*
 3. **The possible-match case** — *"Is 'Eton Consultants Group Ltd' the same company as 'Eton Consultants Group Limited'?"* → one `similar` edge, flagged `includes_possible_match`, and the answer must say **possible match** — never "same company".
 
@@ -84,9 +84,27 @@ N = number of nodes in the graph (live count)
 - **Mean, not sum** — padding a path with extra hops cannot raise the score.
 - **Endpoints contribute nothing** — the question is about what *links* two records, not how famous the records are.
 - **Relative, not absolute**: `N` is read live, so the *same* connection scores higher on the bigger union graph (N = 838,293 → **+1.10** shift vs the 278,693-node offshore graph). Scores are meant to be compared **within one graph**.
+- **The score is relative to the size of the loaded graph (N = node count)**, so the same path scores about 1.1 higher on `icij` than on `offshore`. Compare scores within one graph, not across graphs.
 - **Relevance, not probability**: a high score means "this link is rare and specific in this dataset"; appearing in the data means nothing about wrongdoing.
 - **Direct links** have no intermediate nodes → the score is **not applicable** and every surface (tool result, API, UI, agent answer) says `not applicable: direct link, no intermediate nodes` instead of printing a number.
 - **Hubs**: default threshold `degree_core <= 1000`. High degree is not "fake" — it just makes a link less informative (one of tens of thousands of shared-address links), which is exactly what the `ln` weighting encodes.
+
+**Score by graph** — the star pairs from the test docs, measured with `strongest_connection` (read-only, no LLM) on each server. The clean pair shows the predicted shift (+1.10); Panama-only names have no `offshore` value, and the hub-blocked pair has no hub-respecting path on either graph.
+
+| Pair (doc id) | `offshore` | `icij` |
+|---|---|---|
+| GALAXY ASIA LIMITED. ↔ TO.CE.CO LIMITED. (flagship / J1 / T2Q1) | 9.35 | 10.45 |
+| GALAXY ASIA LIMITED. ↔ PERFECT INVESTMENTS COMPANY LIMITED. (D1) | 8.79 | 9.91 |
+| Julius J. Grodski ↔ Zodiac Concepts Inc. (J2) | 11.44 | 12.54 |
+| TO.CE.CO's address partner (170206) ↔ GALAXY ASIA (M1 follow-up) | 7.95 | 9.05 |
+| Gary Pepper (108040) ↔ Giltbridge Trading Limited (A1) | 10.93 | 12.03 |
+| The M.Y.H. Trust ↔ The Victoria & Daniel Trust (T2Q2) | 9.83 | 10.93 |
+| JDC HOLDINGS S.A. ↔ INTERTRADE SYSTEMS LTD (P1) | — (Panama-only) | 12.03 |
+| ERNHARD COMPANY LTD. ↔ CALYPSO STAR LTD. (P2) | — (Panama-only) | 12.03 |
+| GALAXY NIGHT WORLDWIDE INC. ↔ ELFERS UNITED INC. (P5) | — (Panama-only) | 11.07 |
+| MAGN DEVELOPMENT LIMITED ↔ MASS FAITH GROUP LTD. (H2 / P3) | — (Panama-only) | no hub-respecting path (excluded hub named) |
+
+Direct-link pairs (Eton Consultants Group Ltd/Limited, PEARL OCEAN HOLDING LIMITED cross-dataset) carry no score by design on either graph — `not applicable: direct link`.
 
 ## Two graphs
 
@@ -165,7 +183,7 @@ The agent talks to the graph through a **stdio MCP server** (`backend/mcp_server
 | `shared_neighbors_tool` | common neighbors of two nodes, hubs listed not dropped |
 | `get_neighbors_tool` | expand one node, hub-filtered, with a hub-centre guard |
 
-Run it under any MCP client: `.venv/bin/python backend/mcp_server/server.py` on stdio. **Verified with an external client**: a second, independent agent (opencode in an empty folder with only an MCP config) discovered and called `offshore_search_entity_tool` ×2 + `offshore_strongest_connection_tool(123345, 170362)` and answered the flagship question correctly (3 hops, 9.35) in ~20 s — exact config, command, and the WSL/Windows wrapper gotcha are in [`docs/MCP.md`](docs/MCP.md).
+Run it under any MCP client: `.venv/bin/python backend/mcp_server/server.py` on stdio. **Verified with an external client**: a second, independent agent (opencode in an empty folder with only an MCP config) discovered and called `offshore_search_entity_tool` ×2 + `offshore_strongest_connection_tool(123345, 170362)` and answered the flagship question correctly (3 hops, 9.35 (offshore)) in ~20 s — exact config, command, and the WSL/Windows wrapper gotcha are in [`docs/MCP.md`](docs/MCP.md).
 
 ## Cypher queries and graph algorithms the product depends on
 
@@ -202,7 +220,7 @@ Answer-grounding runs in the agent itself: every id, name, degree and quote in a
 Honest list — these are **documented, not hidden** (each one is recorded in `docs/DECISIONS.md`, `docs/COMPLEX_QUESTIONS.md` or `docs/TEST_QUESTIONS.md`):
 
 - **No shared-structure (officer + address + intermediary) demo pair found yet** — 18 offshore + 12 union intermediaries were mined; the graphs have strong *pairs*, no verified triple. We say so rather than fake one.
-- **No deep Panama-only path pair** yet (4–5 hops, non-hub, core-only) — the heavy read-only mining query hit the time box; the 2-hop Panama pairs (score 12.03) are in the test set.
+- **No deep Panama-only path pair** yet (4–5 hops, non-hub, core-only) — the heavy read-only mining query hit the time box; the 2-hop Panama pairs (score 12.03 (icij)) are in the test set.
 - **Depth 6 is not safe on hub-blocked pairs** (the candidate query hits its 15 s timeout — measured 15.68 s); **depth 5 is** (0.16–0.97 s measured on all pairs).
 - **Name search has limits**: address nodes carry no name field (address hubs cannot be resolved by name — by design, and by data); RediSearch tokenizes punctuation loosely, mitigated by querying the raw and punctuation-stripped forms and unioning.
 - **Soft edges are possible matches** — there is no entity resolution beyond ICIJ's own records; the single cross-dataset `same_as` edge is presented as a possible match.

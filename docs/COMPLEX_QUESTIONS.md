@@ -23,7 +23,7 @@ confirmed identities.
 ### D1
 - Q: What is the strongest recorded connection between GALAXY ASIA LIMITED. and PERFECT INVESTMENTS COMPANY LIMITED.?
 - Graph: offshore. Tools: search, search, strongest_connection.
-- Expected: length 4, score 8.79, core edges only
+- Expected: length 4, score 8.79 (offshore), core edges only
   `officer_of, officer_of, intermediary_of, intermediary_of`; nodes
   123345 GALAXY ASIA LIMITED. → 115554 Ng Kwong Hing → 169475 Yeung Family Trust
   → 119129 PricewaterhouseCoopers → 123358 PERFECT INVESTMENTS COMPANY LIMITED;
@@ -39,7 +39,7 @@ confirmed identities.
 ### J1
 - Q: What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED.?
 - Graph: offshore. Tools: search, search, strongest_connection.
-- Expected: length 3, score 9.35; VGB company → HKG intermediary (Tricor
+- Expected: length 3, score 9.35 (offshore); VGB company → HKG intermediary (Tricor
   Services Limited 296604) → HKG address (234218) → HKG company (170362);
   two jurisdictions crossed (VGB, HKG); includes_possible_match=false.
 - Latency: 0.3–0.5 s (icij re-run measured 0.42 s; offshore same shape).
@@ -47,7 +47,7 @@ confirmed identities.
 ### J2
 - Q: What is the strongest recorded connection between Julius J. Grodski and Zodiac Concepts Inc.?
 - Graph: offshore. Tools: search, search, strongest_connection.
-- Expected: length 2, score 11.44, `registered_address+registered_address`
+- Expected: length 2, score 11.44 (offshore), `registered_address+registered_address`
   through the record "Julius J. Grodski" 297799 (Intermediary, USA);
   endpoints 108147 (XXX;USA) and 201323 (XXX;USA;CAN); includes_possible_match=false.
 - Latency: ~0.3 s.
@@ -90,7 +90,7 @@ confirmed identities.
   get_neighbors(170362) → get_neighbors(234218) [the address] →
   search("Li Meng Chemical Limited") → strongest_connection(170206, 123345).
 - Expected: the address 234218 (degree 5) hosts Li Meng Chemical Limited
-  (170206); strongest_connection(170206, 123345) = length 2, score 7.95;
+  (170206); strongest_connection(170206, 123345) = length 2, score 7.95 (offshore);
   both names unique (search exact hits: Li Meng 1, TO.CE.CO 1).
 - Latency: two get_neighbors ≈ 0.06 s each; strongest_connection ≈ 0.3 s.
 - Why: forces search + expansion + path in sequence and produces a 3-node final
@@ -103,7 +103,7 @@ confirmed identities.
   USA, degree 5; Entity 108040, USA;XXX, degree 2), then strongest_connection.
 - Expected: picking the Intermediary 298260 gives length 1 (direct; score
   not applicable: direct link, no intermediate nodes); picking the Entity 108040 gives
-  length 2 (score 10.93). The answer must state which record it used.
+  length 2 (score 10.93 (offshore)). The answer must state which record it used.
 - Latency: ~0.3 s per strongest_connection call.
 - Why: the follow-up turns a disambiguation into two genuinely different answers.
 ### A2
@@ -184,7 +184,7 @@ confirmed identities.
 - Graph: icij (Panama-only pair). Tools: search, search,
   strongest_connection(10155837, 10172348).
 - Expected: path length 2, edge types `officer_of` only (core), NO soft flag;
-  best score 11.07 via the officer CARLOS GUTIERREZ (node 12074000); the window
+  best score 11.07 (icij) via the officer CARLOS GUTIERREZ (node 12074000); the window
   shows 5 ranked paths, all length 2.
 - Latency: agent 5.5 s (3 calls); path tool ~0.1 s.
 - Why: a clean Panama-side core-only officer chain with multiple ranked
@@ -192,7 +192,7 @@ confirmed identities.
 - Mined but NOT cached (tool-checked, same shapes): SOUND MANAGEMENT LIMITED
   (10003468/173179) and TEAM STAR LIMITED (10074417/126561) — cross-dataset;
   LONG WIN DEVELOPMENT LTD. (10074408) ↔ MAY VIEW INVESTMENT LIMITED
-  (10077621) — Panama 2-hop officer_of, score 11.85.
+  (10077621) — Panama 2-hop officer_of, score 11.85 (icij).
 
 ## Dropped / not found (time-box report)
 - C1 second deep pair (icij): mining query dropped at the time box.
@@ -219,10 +219,10 @@ confirmed identities.
   - 7: the words "possible match" must appear; any identity claim = FAIL.
   - 8: P1/P3/P4 must say "possible match"; a "same company" claim = FAIL. P5:
     exactly a 2-hop core-only (`officer_of`) chain, 5 ranked paths, best score
-    ≈11.07; any soft edge or extra hop = FAIL.
+    ≈11.07 (icij); any soft edge or extra hop = FAIL.
 
 ## Video picks (7)
-1. J1 GALAXY ASIA → TO.CE.CO (4 nodes, 2 countries, score 9.35).
+1. J1 GALAXY ASIA → TO.CE.CO (4 nodes, 2 countries, score 9.35 (offshore)).
 2. H2 MAGN DEVELOPMENT vs MASS FAITH (ORION HOUSE, icij).
 3. S1 Eton Ltd vs Eton Limited (one dashed similar edge).
 4. P1 PEARL OCEAN HOLDING LIMITED (cross-dataset same_as).

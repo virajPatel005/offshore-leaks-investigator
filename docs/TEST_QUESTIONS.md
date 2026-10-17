@@ -35,7 +35,7 @@ across Entity/Officer/Intermediary at time of writing.
 ### T2Q1 ★
 - Q: What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?
 - Tools: search, search, strongest_connection.
-- Expected: length 3 via non-hub nodes (123345–170362), score ≈ 9.35.
+- Expected: length 3 via non-hub nodes (123345–170362), score ≈ 9.35 (offshore).
 - Why: demo question 1 reference case.
 ### T2Q2 ★
 - Q: What do The M.Y.H. Trust and The Victoria & Daniel Trust share?
@@ -126,11 +126,11 @@ GRAPH_NAME=icij; the default graph stays `offshore`.
 ### P1
 - Q: What is the strongest recorded connection between JDC HOLDINGS S.A. and INTERTRADE SYSTEMS LTD?
 - Tools: search, search, strongest_connection.
-- Expected: length 2 through officer SECURITY HOUSE NOMINEES INC. (both entities' only exact-hit names); score ≈ 12.03; includes_possible_match=false; both nodes are Panama Papers records.
+- Expected: length 2 through officer SECURITY HOUSE NOMINEES INC. (both entities' only exact-hit names); score ≈ 12.03 (icij); includes_possible_match=false; both nodes are Panama Papers records.
 ### P2
 - Q: What is the strongest recorded connection between ERNHARD COMPANY LTD. and CALYPSO STAR LTD.?
 - Tools: search, search, strongest_connection.
-- Expected: length 2 through officer UNIHOUSE NOMINEES LIMITED (node 12013417; the name also exists on other officer nodes, all other exact hits have 1-entity fan-out); score ≈ 12.03; includes_possible_match=false.
+- Expected: length 2 through officer UNIHOUSE NOMINEES LIMITED (node 12013417; the name also exists on other officer nodes, all other exact hits have 1-entity fan-out); score ≈ 12.03 (icij); includes_possible_match=false.
 ### P3 ★
 - Q: What is the strongest recorded connection between MAGN DEVELOPMENT LIMITED and MASS FAITH GROUP LTD.?
 - Tools: search, search, strongest_connection.
