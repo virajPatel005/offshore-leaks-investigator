@@ -1,0 +1,5 @@
+Path: /home/viraj/projects/offshore-investigator (repo root) — everything runs from here
+File that serves it: backend/app/main.py (page itself is web/index.html)
+Commands, in order: docker compose up -d (engine) → .venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 → open http://127.0.0.1:8000/ in your browser
+Click the 3 example buttons or type any TEST_QUESTIONS question; "Ask (live trace)" streams steps
+CLI alternative (no browser): .venv/bin/python scripts/ask.py "question"
