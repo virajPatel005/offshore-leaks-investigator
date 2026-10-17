@@ -1,6 +1,7 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
+- **Phase 4a done 2026-10-18 (0 LLM)**: README.md rewritten for judges (pitch + 3 try-questions, mermaid architecture + data model, hub/score section with formula, measured findings, two graphs, fresh-clone setup, env vars + provider switching, MCP + the verified external client, query registry audit — only the `/health` count probe sits outside Q1–Q9 — tests, known quirks, attribution, AI disclosure); `docs/img/CAPTURE.md` lists the 8 screenshots the README embeds (**Viraj still has to capture them**). Two product fixes: 0a LLM-hang — `backend/llm/client.py` now does bounded retries (`LLM_MAX_ATTEMPTS=3`, 1s+2s backoff, per-call `LLM_CALL_TIMEOUT_S=45`), returns `LLMError` → API 429 with "the language model is rate-limited, try again in a minute" (timeout → 504), agent `decide` runs the client via `asyncio.to_thread`, and MCP stdio `ExceptionGroup`s are unwrapped so the API/UI see the real message; 0b direct-link display — a 1-hop link returns `score: null` + "not applicable: direct link, no intermediate nodes" everywhere (tool, actions, UI score table, agent wording). Verified: `backend/tests/test_llm_guard.py` 16/16 (fakes only, no LLM, no keys), T1Q3 + PEARL pairs report the note, T2Q1 regression green (9.35). **The tmux uvicorn process predates these changes — restart it before the demo.** Also: `docker-compose.yml` keeps the hardcoded dev import-root path on purpose (see Gotchas: a malformed `.env` DATA_DIR line makes any `${DATA_DIR}` interpolation un-parseable).
 - Phase: 2 done; Phase 3a–3d done (3d browser-confirmed); TEST_QUESTIONS re-graded; **Phase 3e union graph built + verified, then STOPPED at the 90-min box** (Panama tier mining, union demo cache, browser soft-chip check pending).
 - Last completed: Phase 3e (commit is the record; full detail in DECISIONS D16 + PROGRESS 2026-10-17 22:35 IST) —
   - Two graphs now: `offshore` (default, 278,693 / 562,700) and `icij` (union, 838,293 / 1,286,362, Portcullis 37,338 OK). Union scores shift ≈ +1.10 (T2Q1 10.45, T2Q2 12.01).
@@ -29,7 +30,7 @@
   - Two-node actions: select two nodes → "Strongest connection" / "What do these share?" → `POST /connect` (no LLM) → new card in the thread; `backend/agent/actions.py` wraps Q6/Q8 in the agent envelope and shared-star edges carry explicit `source_id`/`target_id`.
   - Graph tools now also return status/start_date/end_date/relationship sourceID (Q6/Q8/Q9 updated; `neighbors.py` keys it `rel_sourceID`). Answers cached before this change show "—" for those fields.
 - Also done: D12 multi-client MCP check (2026-10-17) — PASSED first try. Empty folder `C:\Users\viraj\icij-mcp-check` holds only `opencode.json` (outside repo) whose MCP command wraps the server in `wsl.exe` (the WSL `opencode` shim execs the Windows `opencode.exe`, so direct Linux paths cannot be spawned). Client called `offshore_search_entity_tool` ×2 + `offshore_strongest_connection_tool(123345,170362)` and answered T2Q1 correctly (9.35, 3 hops, ~20 s, model `opencode/deepseek-v4.1-flash-free`). Exact config + command + cosmetic PowerShell stderr note are in docs/MCP.md.
-- Next: Viraj's browser click-through of chips vs question box, then Phase 3 remaining (deploy attempt, Track 2 memory decision), then Phase 4 (feature freeze 12:00 IST Oct 18, README, demo video incl. the D12 segment, submission).
+- Next: **Viraj**: restart uvicorn (loads 0a/0b), fix the `.env` DATA_DIR line, browser click-through of chips vs question box + capture the 8 screenshots; then the open decisions (deploy attempt, Track 2 memory, LICENSE choice), then Phase 4 (feature freeze 12:00 IST Oct 18, demo video incl. the D12 segment, submission).
 
 ## How to run things
 - venv: `.venv` (system Python 3.12: `/usr/bin/python3.12 -m venv .venv`); `.venv/bin/pip install -r requirements.txt` (falkordb, python-dotenv).
@@ -37,6 +38,7 @@
 - Smoke: `.venv/bin/python scripts/smoke_falkordb.py` → `SMOKE OK ...` (throwaway `<graph>_smoke` graph, created + deleted).
 - DATA_DIR=/home/viraj/data/icij (outside repo, ~600 MB CSVs). Never copy raw data into the repo; `*.csv` is gitignored.
 - Scripts (analysis ones are read-only, stdlib only): `smoke_falkordb.py` (engine reachability); `analyze_slice.py` (slice counts, D4 collisions, core degrees); `check_collisions.py` (name/country comparison for colliding IDs); `prepare_slice.py` (writes the 12 load-ready files to DATA_DIR/prepared); `load_graph.py` (LOAD CSV import, `--drop` to reload, `--verify-only` to recheck).
+- Tests: `backend/tests/test_llm_guard.py` — 16 no-LLM checks (retry cap, timeout→504, 429 detail contract, SSE error event, grounding samples): `.venv/bin/python backend/tests/test_llm_guard.py` (no server, no keys needed).
 
 ## Key decisions (decision | evidence | status)
 - WSL Ubuntu + local Docker baseline | Docker 29.8.2 reachable in WSL (D9) | confirmed
@@ -66,6 +68,9 @@
 - role_category unknown dominates (314k/563k) because registered_address + intermediary_of links carry no role text — expected, raw link preserved for recompute.
 
 ## Gotchas and fixes
+- `.env` DATA_DIR line has a **doubled prefix** (`DATA_DIR=DATA_DIR=...`), found content-blind (grep counts, file never displayed) during Phase 4a. Python side survives (prepare_slice never loads .env; defaults are right), but ANY `${DATA_DIR}` interpolation in `docker-compose.yml` makes every compose command fail with `refers to undefined volume DATA_DIR=...`. The compose file therefore keeps the hardcoded dev import-root path on purpose. **Viraj: fix the line to a single `DATA_DIR=` before ever using interpolation.**
+- The tmux uvicorn process was started before the 0a/0b changes (2026-10-18) — its in-memory code is older than the files. Restart with the documented tmux pattern (kill/start as SEPARATE commands) before the demo or the old wording/timeout behavior shows.
+- UI score table shows stale cached entries defensively now: a missing/non-finite `score` renders the `score_note` (or "n/a (no path)") instead of `NaN`; missing per-node weights render "—".
 - falkordb 1.8.0: delete a test graph via `Graph.delete()` (`db.select_graph(name).delete()`); the client has no `delete_graph`.
 - `git commit -m "..."` message truncates through wsl quoting → write message to a file, `commit -F <file>`, then remove the file.
 - FalkorDB shortestPath() is directed-only and MATCH-scoped (WITH/RETURN form); undirected var-length MATCH with WHERE all() filters after hub expansion (60s timeout at 36k hub) — prune with per-hop predicates instead. Bounded algo.SPpaths also uses DFS enumeration (timed out 60s); unbounded takes the Dijkstra fast path — never pass maxLen to the reference call.

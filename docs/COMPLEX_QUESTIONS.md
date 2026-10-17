@@ -101,8 +101,8 @@ confirmed identities.
 - Q: Find Gary Pepper. Then: what is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?
 - Graph: offshore. Tools: search (returns 2 candidates: Intermediary 298260,
   USA, degree 5; Entity 108040, USA;XXX, degree 2), then strongest_connection.
-- Expected: picking the Intermediary 298260 gives length 1 (direct,
-  score 0.00 = not applicable: direct link); picking the Entity 108040 gives
+- Expected: picking the Intermediary 298260 gives length 1 (direct; score
+  not applicable: direct link, no intermediate nodes); picking the Entity 108040 gives
   length 2 (score 10.93). The answer must state which record it used.
 - Latency: ~0.3 s per strongest_connection call.
 - Why: the follow-up turns a disambiguation into two genuinely different answers.
@@ -121,7 +121,8 @@ confirmed identities.
 - Q: Is "Eton Consultants Group Ltd" the same company as "Eton Consultants Group Limited"?
 - Graph: offshore. Tools: search, search, strongest_connection(290583, 290763).
 - Expected: length 1, rel_type `similar`, includes_possible_match=true,
-  possible_match_edges=["similar"], score 0.00 (direct link); the answer must
+  possible_match_edges=["similar"], score not applicable: direct link, no intermediate nodes;
+  the answer must
   label it a possible match, never a confirmed identity. Name hits are NOT
   unique (Ltd: 2 exact; Limited: 3 exact) so neutral wording matters.
 - Latency: ~0.3 s.
@@ -140,7 +141,7 @@ confirmed identities.
 - Q: Are "PEARL OCEAN HOLDING LIMITED" on the Panama Papers and on Offshore Leaks the same company?
 - Graph: icij. Tools: search, search, strongest_connection(10001004, 148317).
 - Expected: ONE `same_as` edge (length 1); includes_possible_match=true,
-  possible_match_edges=["same_as"], score 0.00 (direct link, not applicable);
+  possible_match_edges=["same_as"], score not applicable: direct link, no intermediate nodes;
   search returns exactly these two records as exact hits; answer must say
   "possible match", never identity. This is the single deliberate cross-dataset
   soft-edge demo.

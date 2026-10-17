@@ -27,7 +27,9 @@ Rules:
 - Resolve every person/company name with search_entity first; it returns node_ids. If several candidates match and none matches the user's text exactly, stop and ask the user to pick one — never silently proceed with one of them.
 - strongest_connection and shared_neighbors accept ONLY node_ids already returned by search_entity; anything else is rejected.
 - Use strongest_connection for the recorded path between two node_ids, shared_neighbors for what two node_ids have in common.
+- Restate node ids and names exactly as tool results returned them (spelling, punctuation and case included). Never invent, guess or "correct" a name or id, and never put a question mark or an uncertain guess inside an answer.
 - State ONLY facts present in tool results. If there is no path, or the path is hub-blocked, say so plainly and name the excluded hubs.
+- If the tool result carries a score_note, the score is not applicable: state it with wording from score_note (e.g. "not applicable: direct link, no intermediate nodes") and never print a numeric score like 0.00.
 - When there is no hub-respecting path, use exactly this shape: "no hub-respecting path within N hops" (N = the max_hops used); if the reference found a longer unfiltered route, add "an unfiltered reference path exists at K hops through <named hub>". Never call the longer route "the strongest connection". Count path length in hops, never nodes.
 - Neutral language: say "connection relevance" and "possible match", never "suspicious" or "criminal". Appearing in the data implies no wrongdoing.
 - If a tool result has includes_possible_match=true, call those links "possible match" edges (soft, similar/same_as/underlying); they are not confirmed identities.
@@ -169,13 +171,15 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
 
     async def decide(state):
         if llm.calls >= llm.max_calls:
-            msg = llm.chat(state["messages"] + [
+            msg = await asyncio.to_thread(llm.chat, state["messages"] + [
                 {"role": "user", "content": "Budget spent. Write the final answer from tool results only."}])
             return {"messages": [msg], "answer": msg.content or ""}
         system = [{"role": "system", "content": SYSTEM}]
         if pin_system:
             system.append({"role": "system", "content": pin_system})
-        msg = llm.chat(system + state["messages"], tools=tools)
+        # The LLM call is blocking (sync HTTP); run it off the event loop so
+        # streaming stays responsive and the request timeout can cancel runs.
+        msg = await asyncio.to_thread(llm.chat, system + state["messages"], tools=tools)
         out = {"messages": [msg]}
         if not getattr(msg, "tool_calls", None):
             out["answer"] = msg.content or ""
@@ -304,8 +308,10 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
             "evidence_path": {"nodes": path.get("nodes", []), "edges": path.get("edges", [])} if path else {},
             # Total = mean D3 rarity over the intermediate nodes only (endpoints
             # are fixed by the question, so they contribute nothing). None when
-            # there is no path; 0.0 for a direct link with no intermediates.
+            # there is no path, and also for a direct link (no intermediates) —
+            # in that case score_note explains why the score does not apply.
             "score": s.get("score"),
+            "score_note": s.get("score_note"),
             "score_breakdown": s.get("breakdown", []),
             "excluded_hubs": hubs,
             "trace": state["trace"],
@@ -324,24 +330,46 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
     return g.compile()
 
 
+def _first_error(ex):
+    """Unwrap the MCP stdio closure's ExceptionGroup down to the real error.
+
+    Exiting stdio_client/ClientSession wraps whatever the body raised in an
+    ExceptionGroup ("unhandled errors in a TaskGroup"), which would hide clear
+    LLM errors (LLMRateLimitedError etc.) behind a generic 502. Cancellation is
+    never unwrapped, so request timeouts still surface as cancellations.
+    """
+    while isinstance(ex, BaseExceptionGroup):
+        flat = [e for e in ex.exceptions if not isinstance(e, asyncio.CancelledError)]
+        if len(flat) != 1:
+            break
+        ex = flat[0]
+    return ex
+
+
 async def arun(question, on_step=None, pins=None):
     params = StdioServerParameters(command=SERVER_CMD[0], args=SERVER_CMD[1:], cwd=".")
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            schemas = (await session.list_tools()).tools
-            llm = LLMClient()
-            app = build_graph(session, schemas, llm, hook=on_step, pins=pins)
-            state = {"messages": [{"role": "user", "content": question}],
-                     "trace": [], "evidence": [], "answer": "", "output": {}}
-            out = await app.ainvoke(state)
-            result = out["output"]
-            result["provider"] = llm.provider
-            os.makedirs("runs", exist_ok=True)
-            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-            with open(f"runs/run-{ts}.json", "w", encoding="utf-8") as f:
-                json.dump({"question": question, "result": result}, f, ensure_ascii=False)
-            return result
+    try:
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                schemas = (await session.list_tools()).tools
+                llm = LLMClient()
+                app = build_graph(session, schemas, llm, hook=on_step, pins=pins)
+                state = {"messages": [{"role": "user", "content": question}],
+                         "trace": [], "evidence": [], "answer": "", "output": {}}
+                out = await app.ainvoke(state)
+                result = out["output"]
+                result["provider"] = llm.provider
+                os.makedirs("runs", exist_ok=True)
+                ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+                with open(f"runs/run-{ts}.json", "w", encoding="utf-8") as f:
+                    json.dump({"question": question, "result": result}, f, ensure_ascii=False)
+                return result
+    except BaseException as ex:
+        inner = _first_error(ex)
+        if inner is not ex:
+            raise inner from None
+        raise
 
 
 def run(question, on_step=None, pins=None):

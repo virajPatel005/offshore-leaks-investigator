@@ -96,10 +96,15 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
                 "includes_possible_match": False, "possible_match_edges": [],
                 "excluded_hubs": excluded, "reference_length": ref_len, "cypher": cypher,
                 "note": "; ".join(notes)}
-    best, best_score, best_down = None, None, None
+    best, best_score, best_down, direct = None, None, None, False
     for nodes, edges in rows:
         down = [{"node_id": r[0], "name": r[1], "degree_core": r[3],
                  "weight": _weight(r[3] or 0, n_total)} for r in nodes[1:-1]]
+        if not down:
+            # Direct link: no intermediate nodes, so there is nothing to rank;
+            # a numeric score would be meaningless (not 0.0).
+            best, best_down, direct = (nodes, edges), down, True
+            break
         # Mean rarity per intermediate node: padding a path with extra hops
         # must not raise its score, so sum (which grows with length) is wrong.
         score = sum(d["weight"] for d in down) / max(1, len(down))
@@ -111,6 +116,10 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
                    "sourceID": r[6]} for r in edges]
     soft = possible_matches(path_edges)
     notes = [n for n in (timeout_note, ref_note) if n]
+    score_note = None
+    if direct:
+        score_note = "not applicable: direct link, no intermediate nodes"
+        notes.append("score " + score_note)
     if soft:
         notes.append("path includes possible-match edge(s) (" + ", ".join(soft)
                      + "): records are linked, identity is not confirmed")
@@ -120,7 +129,7 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
                      "nodes": [{"node_id": r[0], "name": r[1], "labels": r[2],
                                 "degree_core": r[3], "sourceID": r[4]} for r in nodes],
                      "edges": path_edges},
-            "score": best_score, "breakdown": best_down,
+            "score": best_score, "score_note": score_note, "breakdown": best_down,
             "includes_possible_match": bool(soft), "possible_match_edges": soft,
             "excluded_hubs": excluded,
             "reference_length": ref_len, "cypher": cypher,

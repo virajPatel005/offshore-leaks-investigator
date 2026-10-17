@@ -23,7 +23,7 @@ across Entity/Officer/Intermediary at time of writing.
 ### T1Q3
 - Q: What is the strongest recorded connection between MIRALEY LTD. and Mr. Andrei Gridnev?
 - Tools: search, search, strongest_connection.
-- Expected: length 1, rel_type officer_of (nodes 108197–5086).
+- Expected: length 1, rel_type officer_of (nodes 108197–5086); score not applicable: direct link, no intermediate nodes.
 - Why: shortest possible path with edge evidence.
 ### T1Q4
 - Q: What is the strongest recorded connection between MIRALEY LTD. and Cliff Legal Services, Inc.?
@@ -50,7 +50,7 @@ across Entity/Officer/Intermediary at time of writing.
 ### T2Q4
 - Q: What do The M.Y.Y. Trust and The Victoria & Daniel Trust share?
 - Tools: search, search, shared_neighbors.
-- Expected: same officer (51221) and same address (234955) as T2Q2 ("The M.Y.Y. Trust" presumed unique — verify at runtime).
+- Expected: same officer (51221) and same address (234955) as T2Q2 ("The M.Y.Y. Trust" is NOT unique — 3 exact hits, so an "ask to pick" outcome also passes).
 - Why: checks the pattern generalizes to a third trust in the cluster.
 
 ## Tier 3 — Hub cases
@@ -88,7 +88,7 @@ across Entity/Officer/Intermediary at time of writing.
 - Why: same name, different jurisdictions.
 ### T4Q3
 - Q: What labels does Portcullis TrustNet (BVI) Limited carry?
-- Tools: search (8 hits), then ask.
+- Tools: search (7 hits), then ask.
 - Expected: ambiguous, ask to pick; the 54662 record carries both Intermediary and Officer labels (D4 merged node).
 - Why: merged Officer+Intermediary identity in the wild.
 ### T4Q4
@@ -139,7 +139,7 @@ GRAPH_NAME=icij; the default graph stays `offshore`.
 ### P4 ★
 - Q: Are "PEARL OCEAN HOLDING LIMITED" on the Panama Papers and on Offshore Leaks the same company?
 - Tools: search, search, strongest_connection.
-- Expected: the two records (Panama 10001004, Offshore 148317) are linked by ONE `same_as` soft edge (length 1, score 0.00, no intermediates); includes_possible_match=true, possible_match_edges=["same_as"]; the answer must call it a "possible match", never a confirmed identity.
+- Expected: the two records (Panama 10001004, Offshore 148317) are linked by ONE `same_as` soft edge (length 1, score not applicable: direct link, no intermediate nodes); includes_possible_match=true, possible_match_edges=["same_as"]; the answer must call it a "possible match", never a confirmed identity.
 - Why: the deliberate cross-dataset soft-edge demo (same_as is the only cross-dataset link type).
 ### Mining note (addendum 2)
 - Candidate pool: 36 Panama-only company pairs reachable in 2 hops through small

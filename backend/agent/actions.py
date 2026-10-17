@@ -42,9 +42,12 @@ def strongest_action(a_id, b_id):
     if nodes:
         mids = [_name(n) for n in nodes[1:-1]]
         answer = (f"Recorded path from {_name(a)} to {_name(b)}: {hops} hop(s)"
-                  + (f" via {', '.join(mids)}" if mids else " (direct link)")
-                  + f". Connection relevance score {res['score']:.2f} "
-                    "(higher = rarer, more informative link).")
+                  + (f" via {', '.join(mids)}" if mids else " (direct link)"))
+        if res.get("score") is None and res.get("score_note"):
+            answer += f". Score: {res['score_note']}."
+        else:
+            answer += (f". Connection relevance score {res['score']:.2f} "
+                       "(higher = rarer, more informative link).")
     else:
         answer = f"No hub-respecting path within {MAX_HOPS} hops between {_name(a)} and {_name(b)}."
         if res.get("reference_length"):
@@ -61,7 +64,8 @@ def strongest_action(a_id, b_id):
     return {"question": f"Strongest connection between {_name(a)} and {_name(b)}",
             "answer": answer, "mode": "strongest", "replay": True, "deterministic": True,
             "evidence_path": {"nodes": nodes, "edges": path.get("edges") or []} if nodes else {},
-            "score": res.get("score"), "score_breakdown": res.get("breakdown") or [],
+            "score": res.get("score"), "score_note": res.get("score_note"),
+            "score_breakdown": res.get("breakdown") or [],
             "excluded_hubs": res.get("excluded_hubs") or [], "shared": [],
             "trace": trace, "candidates": [], "cached": False, "limitations": LIMITATIONS}
 

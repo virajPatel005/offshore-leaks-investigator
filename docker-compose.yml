@@ -14,6 +14,9 @@ services:
       # the import root (../ and absolute paths rejected; nested mounts under a
       # :ro parent fail), so import_root holds hardlinks: offshore files at the
       # root, the union slices under icij/ (loader uses --prepared icij).
+      # Fresh clone: point the left side at YOUR $DATA_DIR/import_root (the
+      # default below is the dev box). Do not use ${DATA_DIR...} here while a
+      # stale .env exists: docker compose would fail on a malformed DATA_DIR line.
       - /home/viraj/data/icij/import_root:/var/lib/FalkorDB/import:ro
     restart: unless-stopped
 
