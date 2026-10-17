@@ -24,23 +24,47 @@ Run the client from an EMPTY folder holding only this config — never from the
 repo (the repo's AGENTS.md would make the client act as a coder). No secrets:
 the server needs no keys and defaults to localhost:6379.
 
-opencode.json
+On this machine opencode is the Windows build (the `opencode` shim in WSL
+execs `opencode.exe`), so the MCP command must pass through `wsl.exe`.
+VERIFIED 2026-10-17; folder used: `C:\Users\viraj\icij-mcp-check` (outside the
+repo, holds only `opencode.json`):
 
-```
+```json
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "offshore": {
       "type": "local",
-      "command": ["/home/viraj/projects/offshore-investigator/.venv/bin/python",
+      "command": ["wsl.exe", "-d", "Ubuntu",
+                  "--cd", "/home/viraj/projects/offshore-investigator",
+                  "-e", "/home/viraj/projects/offshore-investigator/.venv/bin/python",
                   "backend/mcp_server/server.py"],
-      "cwd": "/home/viraj/projects/offshore-investigator",
       "enabled": true
     }
-  }
+  },
+  "permission": { "edit": "deny", "bash": "deny", "webfetch": "deny", "websearch": "deny" }
 }
 ```
 
-Replace the two paths with your checkout location. External client check
-(opencode/Claude Code from the empty folder) is a separate 30 min task (D12)
-and has NOT been run yet.
+(The permission block is optional; it keeps the demo client to MCP tools only.)
+For a natively-installed Linux opencode, drop the `wsl.exe` wrapper and use
+`"command": ["/home/viraj/projects/offshore-investigator/.venv/bin/python",
+"backend/mcp_server/server.py"]` with `"cwd": "/home/viraj/projects/offshore-investigator"`.
+Clients see the tools prefixed with the server name: `offshore_search_entity_tool`,
+`offshore_strongest_connection_tool`, `offshore_shared_neighbors_tool`.
+
+## D12 check result (2026-10-17) — PASSED
+
+Model `opencode/deepseek-v4.1-flash-free`; command run from the empty folder:
+
+```
+opencode run -m opencode/deepseek-v4.1-flash-free "Use the offshore MCP tools (offshore_search_entity_tool, offshore_strongest_connection_tool) to answer: what is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED.? Give the path and the score."
+```
+
+Observed (~20 s): two `offshore_search_entity_tool` calls (GALAXY ASIA LIMITED /
+TO.CE.CO LIMITED) → `offshore_strongest_connection_tool {"source_id":"123345","target_id":"170362"}`
+→ answer "score 9.35, 3 hops: GALAXY ASIA LIMITED. → Tricor Services Limited →
+address → TO.CE.CO LIMITED" — the correct T2Q1 result. The same MCP server thus
+serves both the product agent and an external opencode client (multi-client
+check). PowerShell's npm shim prints one cosmetic `NativeCommandError` line on
+stderr; the run itself is clean (use a plain terminal for the video).
