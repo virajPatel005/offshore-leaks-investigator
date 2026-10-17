@@ -154,6 +154,45 @@ confirmed identities.
   pairs (JDC↔INTERTRADE, ERNHARD↔CALYPSO STAR) are already in
   TEST_QUESTIONS.md's "Panama / union" tier. Re-mine later with an
   index-assisted approach.
+### P3 — cross-dataset soft pair: MATCHBOX INTERNATIONAL LTD ★ video pick
+- Q: Are "MATCHBOX INTERNATIONAL LTD" on the Panama Papers and on Offshore
+  Leaks the same company?
+- Graph: icij. Tools (verified agent runs, cached 2026-10-18): unpinned run —
+  search, then the model stops and lists candidates; pinned run (both records
+  pinned) — strongest_connection(10001803, 173959) + shared_neighbors.
+- Expected: ONE `same_as` edge (length 1); includes_possible_match=true;
+  score not applicable: direct link, no intermediate nodes. The unpinned step
+  must ask the user to pick (search returns the two records 10001803 Panama /
+  173959 Offshore; the agent also displays a dotted-name variant); the answer
+  must say "possible match", never identity.
+- Latency: agent 4.8 s unpinned (2 calls), 11.0 s pinned (2 calls); path tool ~0.1 s.
+- Why: the complete union-graph disambiguation story (stop → pick → pinned
+  answer) in one question; both steps cached for the demo.
+### P4 — cross-dataset soft pair: GLOBAL CAR KING CO., LTD.
+- Q: Are "GLOBAL CAR KING CO., LTD." on the Panama Papers and on Offshore
+  Leaks the same company?
+- Graph: icij. Tools: search, search, strongest_connection(10090838, 131396).
+- Expected: one `same_as` edge (length 1), possible-match wording + direct-link
+  note (same rules as P1/P3). Here the model answered directly without stopping
+  to pick — re-verify wording if the cached answer is replaced.
+- Latency: agent 4.7 s (3 calls); path tool ~0.1 s.
+- Why: short, memorable name; same one-hop cross-dataset value as P3 without
+  the pick interaction.
+### P5 — Panama core chain, 2 hops: GALAXY NIGHT WORLDWIDE INC. ↔ ELFERS UNITED INC. ★ video pick
+- Q: What is the strongest recorded connection between GALAXY NIGHT WORLDWIDE
+  INC. and ELFERS UNITED INC.?
+- Graph: icij (Panama-only pair). Tools: search, search,
+  strongest_connection(10155837, 10172348).
+- Expected: path length 2, edge types `officer_of` only (core), NO soft flag;
+  best score 11.07 via the officer CARLOS GUTIERREZ (node 12074000); the window
+  shows 5 ranked paths, all length 2.
+- Latency: agent 5.5 s (3 calls); path tool ~0.1 s.
+- Why: a clean Panama-side core-only officer chain with multiple ranked
+  alternatives — the union graph is not only cross-dataset soft edges.
+- Mined but NOT cached (tool-checked, same shapes): SOUND MANAGEMENT LIMITED
+  (10003468/173179) and TEAM STAR LIMITED (10074417/126561) — cross-dataset;
+  LONG WIN DEVELOPMENT LTD. (10074408) ↔ MAY VIEW INVESTMENT LIMITED
+  (10077621) — Panama 2-hop officer_of, score 11.85.
 
 ## Dropped / not found (time-box report)
 - C1 second deep pair (icij): mining query dropped at the time box.
@@ -178,11 +217,17 @@ confirmed identities.
   - 6: the answer must either ask the user to pick or state which record it
     used; silently choosing = FAIL.
   - 7: the words "possible match" must appear; any identity claim = FAIL.
-  - 8: P1 must say "possible match"; a "same company" claim = FAIL.
+  - 8: P1/P3/P4 must say "possible match"; a "same company" claim = FAIL. P5:
+    exactly a 2-hop core-only (`officer_of`) chain, 5 ranked paths, best score
+    ≈11.07; any soft edge or extra hop = FAIL.
 
-## Video picks (5)
+## Video picks (7)
 1. J1 GALAXY ASIA → TO.CE.CO (4 nodes, 2 countries, score 9.35).
 2. H2 MAGN DEVELOPMENT vs MASS FAITH (ORION HOUSE, icij).
 3. S1 Eton Ltd vs Eton Limited (one dashed similar edge).
 4. P1 PEARL OCEAN HOLDING LIMITED (cross-dataset same_as).
 5. A1 Gary Pepper (two candidates, two different answers).
+6. P3 MATCHBOX INTERNATIONAL LTD (stop-to-pick, then the one-hop cross-dataset
+   `same_as` — "possible match"; both steps cached).
+7. P5 GALAXY NIGHT ↔ ELFERS (5 ranked hub-respecting 2-hop officer paths,
+   Panama side of icij).

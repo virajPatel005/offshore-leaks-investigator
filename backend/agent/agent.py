@@ -378,8 +378,16 @@ def _first_error(ex):
     return ex
 
 
+def _mcp_params():
+    """GRAPH_NAME must be forwarded to the MCP subprocess explicitly: the MCP
+    SDK only inherits a safe allowlist of env vars (get_default_environment),
+    so without this the subprocess silently falls back to the default graph."""
+    return StdioServerParameters(command=SERVER_CMD[0], args=SERVER_CMD[1:], cwd=".",
+                                 env={"GRAPH_NAME": os.getenv("GRAPH_NAME", "offshore")})
+
+
 async def arun(question, on_step=None, pins=None):
-    params = StdioServerParameters(command=SERVER_CMD[0], args=SERVER_CMD[1:], cwd=".")
+    params = _mcp_params()
     try:
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
