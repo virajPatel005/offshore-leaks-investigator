@@ -64,10 +64,16 @@
   * { box-sizing: border-box; }
   html, body { background: var(--bg-page); color: var(--text-primary); font-family: var(--sans); }
   body { margin: 0 auto; max-width: 1000px; padding: 0 16px 140px; line-height: 1.55; }
-  h1 { font-size: 1.35rem; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+  h1 { font-size: 1.35rem; font-weight: 650; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
   .hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 10px; }
   :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   button { font: inherit; cursor: pointer; }
+  /* manipulation: no double-tap-zoom delay; pan/pinch still reach the canvas. */
+  button, input, .graph, .graphbar, .zoomrow, .chip, .candbtn { touch-action: manipulation; }
+  .skip { position: absolute; left: 8px; top: -60px; z-index: 50; padding: 10px 14px;
+    background: var(--bg-surface); color: var(--text-primary); text-decoration: none;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+  .skip:focus { top: 8px; }
   button:hover, .chip:hover, .candbtn:hover { border-color: var(--accent); }
   .btn:hover { background: var(--bg-hover); }
 
@@ -97,13 +103,21 @@
   .graphrow { display: flex; gap: 12px; align-items: stretch; }
   .graphwrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .graphbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  .graphbar .btn { padding: 5px 10px; font-size: .82rem; }
-  .graph { height: 380px; width: 100%; background: var(--bg-elevated);
+  .graphbar .btn, .zoomrow .btn { min-height: 44px; padding: 8px 12px; font-size: .85rem; }
+  .graph { height: 420px; width: 100%; background: var(--bg-elevated);
     border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .graphwrap:fullscreen { background: var(--bg-page); padding: 12px; display: flex; flex-direction: column; }
   .graphwrap:fullscreen .graph { flex: 1; height: auto; }
   .actionbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
   .actionbar .btn { padding: 6px 12px; font-size: .85rem; }
+  .zoomrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .zbtn { background: transparent; color: var(--text-primary); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); font-size: 1.05rem; font-weight: 600;
+    min-width: 44px; min-height: 44px; }
+  .zbtn:hover { border-color: var(--accent); background: var(--bg-hover); }
+  .zslider { flex: 1; min-width: 130px; height: 44px; accent-color: var(--accent); }
+  .zpct { font-family: var(--mono); font-size: .85rem; font-variant-numeric: tabular-nums;
+    min-width: 4.6em; text-align: right; color: var(--text-secondary); }
   .side { width: 246px; flex: none; background: var(--bg-elevated); border: 1px solid var(--border);
     border-radius: var(--radius-sm); padding: 10px 12px; font-size: .86rem; }
   .side .name { font-weight: 650; margin-bottom: 4px; }
@@ -169,13 +183,14 @@
 </style>
 </head>
 <body>
+<a class="skip" href="#thread">Skip to results</a>
 <div id="banner">Appearing in the ICIJ Offshore Leaks database does not imply wrongdoing.</div>
 <div class="hd">
   <h1>Offshore Investigator</h1>
   <button id="themebtn" class="btn ghost" title="Switch theme">Theme</button>
 </div>
 
-<div id="thread">
+<div id="thread" tabindex="-1">
   <div class="empty">Type two names, for example GALAXY ASIA LIMITED and TO.CE.CO LIMITED.
     We show how they are connected in the public records. If a name matches several records,
     click the one you mean.</div>
@@ -199,6 +214,12 @@ const SOFT = new Set(["similar", "same_as", "same_id_as", "same_name_as", "same_
                       "probably_same_officer_as", "same_address_as", "underlying"]);
 const KNOWN_LABELS = ["Entity", "Officer", "Intermediary", "Address"];
 const HUB_THRESHOLD = 1000;
+/* Canvas behaviour knobs. WHEEL_SENSITIVITY: lower = gentler zoom per wheel
+   notch (cytoscape default is 1). MIN/MAX_ZOOM span what a 2-node and a
+   200-node graph both need; the zoom slider covers exactly this range. */
+const WHEEL_SENSITIVITY = 0.15;
+const MIN_ZOOM = 0.02, MAX_ZOOM = 10;
+const SLIDER_STEPS = 1000;
 const THEME_KEY = "oi-theme";
 const SIDE_HINT = "Click a node for details, to expand it and to compare two. Click an edge for its record fields.";
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -306,11 +327,14 @@ function pathElements(r) {
 }
 
 function buildGraph(container, els, card) {
-  const cy = cytoscape({ container, elements: els, wheelSensitivity: 0.15, minZoom: 0.25, maxZoom: 3,
-    style: graphStyle(), layout: layoutOpts(card) });
+  const cy = cytoscape({ container, elements: els, wheelSensitivity: WHEEL_SENSITIVITY,
+    minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM, style: graphStyle() });
   cy.on("tap", "node", evt => { onNodeTap(card, evt.target.id()); });
   cy.on("tap", "edge", evt => { evt.stopPropagation(); selectEdge(card, evt.target); });
   cy.on("tap", evt => { if (evt.target === cy) resetSelection(card); });
+  cy.on("zoom", () => updateZoomUI(card));
+  cy.on("layoutstop", () => markBase(card));
+  relayout(cy, card);
   return cy;
 }
 function layoutOpts(card) {
@@ -319,6 +343,36 @@ function layoutOpts(card) {
            nodeDimensionsIncludeLabels: true, animate: !reduced, animationDuration: 300 };
 }
 function relayout(cy, card) { cy.layout(layoutOpts(card)).run(); }
+
+/* Zoom model: 100% = the zoom of the last automatic fit (initial layout, a
+   relayout after expansion, a full-screen refit). The slider works in log
+   space so low zooms stay reachable; wheel/pinch/Fit all flow through the
+   "zoom" event, so the readout and slider track the canvas both ways. */
+const clampZoom = (cy, z) => Math.min(cy.maxZoom(), Math.max(cy.minZoom(), z));
+const sliderToZoom = v => MIN_ZOOM * Math.pow(MAX_ZOOM / MIN_ZOOM, v / SLIDER_STEPS);
+const zoomToSlider = z => Math.round(SLIDER_STEPS * Math.log(z / MIN_ZOOM) / Math.log(MAX_ZOOM / MIN_ZOOM));
+const fmtPct = p => (p >= 10 ? Math.round(p) : p.toFixed(1)) + "%";
+function zoomTo(card, level) {
+  const cy = card.cy;
+  cy.zoom({ level: clampZoom(cy, level),
+            renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+}
+function markBase(card) {
+  if (!card.cy) return;
+  card.baseZoom = card.cy.zoom();
+  updateZoomUI(card);
+}
+function updateZoomUI(card) {
+  const cy = card.cy, bar = card.el.querySelector(".zoomrow");
+  if (!cy || !bar) return;
+  const txt = fmtPct(cy.zoom() / (card.baseZoom || cy.zoom()) * 100);
+  bar.querySelector(".zpct").textContent = txt;
+  const s = bar.querySelector(".zslider");
+  // Skip the write only while the pointer is dragging the slider, so a wheel
+  // or pinch still moves it even when the slider holds focus.
+  if (!card.sliderDrag) s.value = String(zoomToSlider(cy.zoom()));
+  s.setAttribute("aria-valuetext", txt);
+}
 
 function resetSelection(card) {
   card.selected = [];
@@ -535,7 +589,16 @@ function render(card, r, boxText) {
           <button class="btn ghost gfull" title="Esc exits full screen">Full screen</button>
           <button class="btn ghost gpng">Download PNG</button>
         </div>
-        <div class="graph"></div><div class="actionbar" hidden></div>
+        <div class="graph"></div>
+        <div class="zoomrow" role="group" aria-label="Zoom controls">
+          <button class="zbtn zout" aria-label="Zoom out">−</button>
+          <input class="zslider" type="range" min="0" step="1" value="1000" aria-label="Zoom level"
+                 title="Drag or use arrow keys. 100% = the default fit.">
+          <button class="zbtn zin" aria-label="Zoom in">+</button>
+          <span class="zpct" title="Zoom relative to the default fit">100%</span>
+          <button class="btn ghost zreset" title="Reset to the default fit">100%</button>
+        </div>
+        <div class="actionbar" hidden></div>
       </div><div class="side"><div class="hint">${SIDE_HINT}</div></div></div>
       ${legendHTML()}
       ${r.replay === false ? "" : `<div class="muted" style="margin-top:6px;display:flex;align-items:center;gap:6px">
@@ -550,7 +613,17 @@ function render(card, r, boxText) {
     card.rootId = card.pathOrder[0];
     card.selected = [];
     card.cy = buildGraph(body.querySelector(".graph"), pathElements(r), card);
-    body.querySelector(".gfit").onclick = () => card.cy.fit(undefined, 26);
+    body.querySelector(".gfit").onclick = () => { card.cy.fit(undefined, 26); updateZoomUI(card); };
+    const zs = body.querySelector(".zslider");
+    zs.max = String(SLIDER_STEPS);
+    zs.value = String(zoomToSlider(card.cy.zoom()));
+    zs.oninput = () => zoomTo(card, sliderToZoom(+zs.value));
+    zs.onpointerdown = () => { card.sliderDrag = true; };
+    zs.onpointerup = () => { card.sliderDrag = false; updateZoomUI(card); };
+    body.querySelector(".zout").onclick = () => zoomTo(card, card.cy.zoom() / 1.6);
+    body.querySelector(".zin").onclick = () => zoomTo(card, card.cy.zoom() * 1.6);
+    body.querySelector(".zreset").onclick = () => zoomTo(card, card.baseZoom || card.cy.zoom());
+    updateZoomUI(card);
     body.querySelector(".gfull").onclick = () => {
       if (document.fullscreenElement) document.exitFullscreen();
       else body.querySelector(".graphwrap").requestFullscreen?.();
@@ -695,7 +768,7 @@ window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", ()
 document.addEventListener("fullscreenchange", () => {
   const fs = !!document.fullscreenElement;
   document.querySelectorAll(".gfull").forEach(b => b.textContent = fs ? "Exit full screen" : "Full screen");
-  CARDS.forEach(card => { if (card.cy) { card.cy.resize(); setTimeout(() => { card.cy.resize(); card.cy.fit(undefined, 30); }, 60); } });
+  CARDS.forEach(card => { if (card.cy) { card.cy.resize(); setTimeout(() => { card.cy.resize(); card.cy.fit(undefined, 30); markBase(card); }, 60); } });
 });
 applyTheme();
 </script>

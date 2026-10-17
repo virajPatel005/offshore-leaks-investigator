@@ -1,15 +1,22 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 done; Phase 3a done; Phase 3b done; Phase 3c (UI fixes) done.
-- Last completed: Phase 3c —
+- Phase: 2 done; Phase 3a done; Phase 3b done; Phase 3c (UI fixes) done; Phase 3d (zoom control) done in code, pending Viraj's browser pass.
+- Last completed: Phase 3d (zoom control) —
+  - Every graph panel now has a zoom bar under the canvas (inside `.graphwrap`, so it is present in full screen too): `−` / logarithmic slider / `+` / live `%` readout / `100%` reset button; "Fit" stays in the top `.graphbar`.
+  - Zoom model: `100%` = the zoom of the last AUTOMATIC fit (initial layout, relayout after expansion, full-screen refit — `markBase`). The explicit "Fit" button deliberately does NOT re-baseline, so Fit and 100% stay distinct tools.
+  - Slider is log-spaced (`sliderToZoom`/`zoomToSlider`, SLIDER_STEPS 1000 over MIN_ZOOM 0.02 – MAX_ZOOM 10); wheel/pinch/Fit/`+`/`−` all flow through the cy `"zoom"` event so slider and readout track the canvas both ways. The slider write is skipped only while the pointer is dragging it (`card.sliderDrag`), so a wheel still moves it when the slider holds focus. Zoom is applied around the viewport centre via `renderedPosition`.
+  - `WHEEL_SENSITIVITY = 0.15` is now a single named constant next to MIN/MAX_ZOOM at the top of the script (was a literal in the constructor); the constructor no longer passes `layout` — `relayout(cy, card)` runs it so `layoutstop` can capture the baseline.
+  - Guidelines LOW items: `touch-action: manipulation` (canvas + controls; the vendored cytoscape only sets `touch-action:none` for legacy IE/Edge, so this is safe for pan/pinch), 44px graph/zoom buttons, `text-wrap: balance` on `h1`, skip link to `#thread` (`tabindex="-1"`). The keyboard node-picker was deliberately NOT built.
+  - Verified: inline JS `node --check` OK, `GET /` 200, 14 static assertions green. Still browser-only: slider↔wheel sync, full-screen zoom-bar layout, both themes rendered.
+- Previously: Phase 3c —
   - Colour bug root-caused from the node data (GALAXY ASIA → Tricor → ENFARI): each node has exactly ONE label, so the "second colour" was the replay step highlight's border ring (accent, 6px) and "no colour" was the old 0.18 node dim while the replay had not reached ENFARI. Fix: neutral `--ring` highlight named in the legend, dimming applies to edges only (0.25), node fills are never dimmed; unknown/missing labels get a dashed grey `cat-unknown` style + `console.warn` (never a silent default).
   - Graph controls: 380px panel, Fit, Full screen (Esc exits; resize+refit on `fullscreenchange`), Download PNG = `cy.png({full:true, scale:2, bg})` (2x, theme background, data URI from the renderer default), wheelSensitivity 0.15.
   - Edges: labels are chips (text-primary on surface, full opacity); an edge click opens a side card with rel_type, raw link, role_category, status, start, end, sourceID and a "possible match" chip for soft types. A node click selects it (max 2, neutral ring) and highlights its edges while other edges dim; an empty-canvas tap resets.
   - Themes: dark + light token blocks; switching is `data-theme` on `<html>` (localStorage `oi-theme`, applied by an inline pre-paint script) with `@media (prefers-color-scheme: light)` as the unset fallback; Cytoscape data colours + stylesheet are rebuilt on change; contrast measured in both modes (D15).
   - Two-node actions: select two nodes → "Strongest connection" / "What do these share?" → `POST /connect` (no LLM) → new card in the thread; `backend/agent/actions.py` wraps Q6/Q8 in the agent envelope and shared-star edges carry explicit `source_id`/`target_id`.
   - Graph tools now also return status/start_date/end_date/relationship sourceID (Q6/Q8/Q9 updated; `neighbors.py` keys it `rel_sourceID`). Answers cached before this change show "—" for those fields.
-- Next: browser checks by Viraj (PNG file, full screen/Esc, both themes rendered, edge card, two-node buttons), then re-grade TEST_QUESTIONS, then deployment/memory decision (Phase 3).
+- Next: browser checks by Viraj (Phase 3d zoom bar: slider↔wheel sync, full-screen layout, both themes; plus the 3c leftovers), then re-grade TEST_QUESTIONS, then deployment/memory decision (Phase 3).
 
 ## How to run things
 - venv: `.venv` (system Python 3.12: `/usr/bin/python3.12 -m venv .venv`); `.venv/bin/pip install -r requirements.txt` (falkordb, python-dotenv).
@@ -63,6 +70,7 @@
 - `cy.png()` in the vendored 3.34.4 has no `output:"base64uri"` case: unknown output values fall through to the default, which returns the full data URI (what `<a download>` needs); `output:"base64"` returns raw base64 without the prefix.
 - `get_neighbors` returns the RELATIONSHIP sourceID as `rel_sourceID` (its `sourceID` key is the neighbour NODE's own source); the UI maps `rel_sourceID || sourceID` so an expansion edge card shows the right record source.
 - The UI action buttons must be reached through the node-select model (tap node → tap second node → bar appears); `updateActions` is the only place the bar is filled, and an empty-canvas tap resets selection + highlight.
+- Zoom baseline: `card.baseZoom` is captured ONLY in `markBase` (cy `layoutstop`, the 60ms full-screen refit) and "100%" resets to it, so any future code path that relayouts/resizes a card without a `layoutstop` or a `markBase` call will leave 100% pointing at a stale zoom. The explicit Fit button intentionally does not re-baseline.
 
 ## Open questions
 - Frontend choice (Phase 2); Track 2 memory in/out (Phase 3).
