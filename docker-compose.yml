@@ -5,9 +5,16 @@ services:
       - "127.0.0.1:6379:6379"
       - "127.0.0.1:3000:3000"
     volumes:
+      # FalkorDB persists in /var/lib/falkordb/data (image symlinks /data/data
+      # there), so the volume must be mounted at both paths or a container
+      # recreate loses every graph.
       - falkordb-data:/data
-      # Slice CSVs only (never raw data): server reads file:// URIs from IMPORT_FOLDER.
-      - /home/viraj/data/icij/prepared:/var/lib/FalkorDB/import:ro
+      - falkordb-data:/var/lib/falkordb/data
+      # Slice CSVs only (never raw data). FalkorDB LOAD CSV opens URIs only at
+      # the import root (../ and absolute paths rejected; nested mounts under a
+      # :ro parent fail), so import_root holds hardlinks: offshore files at the
+      # root, the union slices under icij/ (loader uses --prepared icij).
+      - /home/viraj/data/icij/import_root:/var/lib/FalkorDB/import:ro
     restart: unless-stopped
 
 volumes:

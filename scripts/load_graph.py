@@ -1,8 +1,10 @@
-"""Load the prepared Offshore Leaks slice into FalkorDB via Cypher LOAD CSV.
+"""Load a prepared slice into FalkorDB via Cypher LOAD CSV.
 
 Order: indexes on node_id per label, then nodes (one file per label set),
 then edges one rel_type at a time. File names are ours (safe to inline);
 row values stay in the row map. Degrees stored as integers.
+`--prepared DIR` reads the CSVs from a subfolder of the container import root
+(e.g. prepared_icij mounted as import/icij); default reads the import root.
 """
 import argparse
 import os
@@ -67,16 +69,16 @@ def run(g, q, params=None):
     return res, time.perf_counter() - t0
 
 
-def verify(g, t_all):
-    # Label counts overlap by design (D4): the 1,139 merged nodes carry two
-    # labels, so per-label sums exceed the unique-node total by exactly 1,139.
+def verify(g, t_all, expect_nodes=278693, expect_edges=562700):
+    # Label counts overlap by design (D4): the merged nodes carry two labels,
+    # so per-label sums exceed the unique-node total by exactly 1,139.
     print(f"graph={GRAPH}")
     counts = [(l, g.query(f"MATCH (n:{l}) RETURN count(n) LIMIT 1").result_set[0][0]) for l in LABELS]
     unique = g.query("MATCH (n) RETURN count(n) LIMIT 1").result_set[0][0]
-    print("nodes " + " ".join(f"{l}={c}" for l, c in counts) + f" unique={unique} CHECK={'OK' if unique == 278693 else 'MISMATCH'}")
+    print("nodes " + " ".join(f"{l}={c}" for l, c in counts) + f" unique={unique} CHECK={'OK' if unique == expect_nodes else 'MISMATCH'}")
     ecounts = [(t, g.query(f"MATCH ()-[r:{t}]->() RETURN count(r) LIMIT 1").result_set[0][0]) for _, t in EDGE_FILES]
     e_total = sum(c for _, c in ecounts)
-    print("edges " + " ".join(f"{t}={c}" for t, c in ecounts) + f" total={e_total} CHECK={'OK' if e_total == 562700 else 'MISMATCH'}")
+    print("edges " + " ".join(f"{t}={c}" for t, c in ecounts) + f" total={e_total} CHECK={'OK' if e_total == expect_edges else 'MISMATCH'}")
     dirs = []
     for _, t in EDGE_FILES:
         a, b = g.query(f"MATCH (x)-[r:{t}]->(y) RETURN labels(x), labels(y) LIMIT 1").result_set[0]
@@ -98,14 +100,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--drop", action="store_true", help="delete the graph and reload")
     ap.add_argument("--verify-only", action="store_true", help="skip loading, only verify")
+    ap.add_argument("--prepared", default="", help="subfolder of the import root holding the prepared CSVs")
+    ap.add_argument("--expect-nodes", type=int, default=278693, help="CHECK value, default = Offshore Leaks")
+    ap.add_argument("--expect-edges", type=int, default=562700, help="CHECK value, default = Offshore Leaks")
     args = ap.parse_args()
+    prefix = (args.prepared.strip("/") + "/") if args.prepared.strip("/") else ""
     from falkordb import FalkorDB
 
     db = FalkorDB(host=HOST, port=PORT)
     g = db.select_graph(GRAPH)
     t_all = time.perf_counter()
     if args.verify_only:
-        verify(g, t_all)
+        verify(g, t_all, args.expect_nodes, args.expect_edges)
         return
     if args.drop:
         g.delete()
@@ -119,25 +125,25 @@ def main():
         _, dt = run(g, f"CREATE INDEX FOR (n:{label}) ON (n.node_id)")
         print(f"index {label}.node_id {dt:.1f}s")
     for csv, labels, cols in NODE_LOADS:
-        _, dt = run(g, f"LOAD CSV WITH HEADERS FROM 'file://{csv}' AS row "
+        _, dt = run(g, f"LOAD CSV WITH HEADERS FROM 'file://{prefix}{csv}' AS row "
                        f"CREATE (n{labels} {{node_id: row.node_id, {props(cols)}, "
                        "degree_core: toInteger(row.degree_core), degree_all: toInteger(row.degree_all)})")
         print(f"nodes {csv} {dt:.1f}s")
-    _, dt = run(g, """LOAD CSV WITH HEADERS FROM 'file://nodes_intermediary_officer.csv' AS row
-CREATE (n:Intermediary:Officer {node_id: row.node_id, name: row.name, countries: row.countries,
-country_codes: row.country_codes, sourceID: row.sourceID, valid_until: row.valid_until, note: row.note,
-status: row.status, internal_id: row.internal_id, address: row.address,
-officer_name: row.officer_name, intermediary_name: row.intermediary_name,
-name_mismatch: row.name_mismatch = 'True',
-degree_core: toInteger(row.degree_core), degree_all: toInteger(row.degree_all)})""")
+    _, dt = run(g, "LOAD CSV WITH HEADERS FROM 'file://" + prefix + "nodes_intermediary_officer.csv' AS row\n"
+                   "CREATE (n:Intermediary:Officer {node_id: row.node_id, name: row.name, countries: row.countries,\n"
+                   "country_codes: row.country_codes, sourceID: row.sourceID, valid_until: row.valid_until, note: row.note,\n"
+                   "status: row.status, internal_id: row.internal_id, address: row.address,\n"
+                   "officer_name: row.officer_name, intermediary_name: row.intermediary_name,\n"
+                   "name_mismatch: row.name_mismatch = 'True',\n"
+                   "degree_core: toInteger(row.degree_core), degree_all: toInteger(row.degree_all)})")
     print(f"nodes nodes_intermediary_officer.csv {dt:.1f}s")
     for csv, typ in EDGE_FILES:
-        _, dt = run(g, EDGE_Q.format(csv=csv, typ=typ))
+        _, dt = run(g, EDGE_Q.format(csv=prefix + csv, typ=typ))
         print(f"edges {csv} {dt:.1f}s")
     print(f"load_total_s={time.perf_counter() - t_all:.0f}")
 
     # --- verification (keep to 15 lines) ---
-    verify(g, t_all)
+    verify(g, t_all, args.expect_nodes, args.expect_edges)
 
 
 if __name__ == "__main__":

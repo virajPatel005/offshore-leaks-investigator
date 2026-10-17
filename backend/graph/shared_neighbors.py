@@ -10,6 +10,8 @@ import os
 
 from falkordb import FalkorDB
 
+from backend.graph.rel_types import possible_matches
+
 HOST = os.getenv("FALKORDB_HOST", "localhost")
 PORT = int(os.getenv("FALKORDB_PORT", "6379"))
 GRAPH = os.getenv("GRAPH_NAME", "offshore")
@@ -51,6 +53,12 @@ def shared_neighbors(id_a, id_b, hub_threshold=1000, limit=20):
     hub_rows = g.query(HUB_Q % limit, {"x": id_a, "y": id_b, "hub": hub_threshold},
                        timeout=QUERY_TIMEOUT_MS).result_set
     excluded = [{"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3]} for r in hub_rows]
+    soft = possible_matches(e for n in neighbors for e in n["via"])
+    note = None
+    if soft:
+        note = ("shown link(s) include possible-match edge(s) (" + ", ".join(soft)
+                + "): records are linked, identity is not confirmed")
     return {"id_a": id_a, "id_b": id_b, "hub_threshold": hub_threshold,
             "neighbors": neighbors, "grouped_by_edge_type": grouped,
-            "excluded_hubs": excluded, "cypher": [cypher, HUB_Q % limit], "note": None}
+            "includes_possible_match": bool(soft), "possible_match_edges": soft,
+            "excluded_hubs": excluded, "cypher": [cypher, HUB_Q % limit], "note": note}

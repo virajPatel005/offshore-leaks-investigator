@@ -22,12 +22,12 @@ from backend.graph.strongest_connection import strongest_connection
 BUDGET_S = 20
 LIST_CAP = 50
 
-LIMITATIONS = ("Connection relevance only: appearing in this public ICIJ Offshore Leaks data "
+LIMITATIONS = ("Connection relevance only: appearing in this public ICIJ leak data "
                "implies no wrongdoing. Scores rank how informative a recorded connection is, "
                "not likelihood of any conduct. Soft-edge matches are possible matches, not identities.")
 
 server = MCPServer("offshore-investigator", instructions=(
-    "Investigate the public ICIJ Offshore Leaks graph in FalkorDB. "
+    "Investigate public ICIJ leak data (Offshore Leaks and Panama Papers) in FalkorDB. "
     "Always call search_entity first to resolve a name to node_ids; "
     "strongest_connection and shared_neighbors need node_ids."))
 
@@ -124,7 +124,8 @@ def graph_schema() -> str:
     return ("Labels: Address, Entity, Intermediary, Officer "
             "(1,139 nodes carry both Intermediary and Officer labels: one node per ID, D4). "
             "Edge types: officer_of, intermediary_of, registered_address (core, always traversed); "
-            "underlying, similar, same_as (soft, opt-in, possible matches only). "
+            "underlying, similar, same_as (soft, included by default, possible matches only). "
+            "Results whose links include a soft type set includes_possible_match=true."
             "degree_core = distinct neighbors via core edges; degree_all = via all edge types. "
             "Scores are connection relevance, not wrongdoing likelihood.")
 

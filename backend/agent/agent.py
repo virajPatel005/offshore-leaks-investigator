@@ -22,7 +22,7 @@ from mcp.client.stdio import stdio_client
 
 from backend.llm.client import LLMClient
 
-SYSTEM = """You investigate the public ICIJ Offshore Leaks graph.
+SYSTEM = """You investigate public ICIJ leak data (Offshore Leaks and Panama Papers) held in a graph.
 Rules:
 - Resolve every person/company name with search_entity first; it returns node_ids. If several candidates match and none matches the user's text exactly, stop and ask the user to pick one — never silently proceed with one of them.
 - strongest_connection and shared_neighbors accept ONLY node_ids already returned by search_entity; anything else is rejected.
@@ -30,11 +30,13 @@ Rules:
 - State ONLY facts present in tool results. If there is no path, or the path is hub-blocked, say so plainly and name the excluded hubs.
 - When there is no hub-respecting path, use exactly this shape: "no hub-respecting path within N hops" (N = the max_hops used); if the reference found a longer unfiltered route, add "an unfiltered reference path exists at K hops through <named hub>". Never call the longer route "the strongest connection". Count path length in hops, never nodes.
 - Neutral language: say "connection relevance" and "possible match", never "suspicious" or "criminal". Appearing in the data implies no wrongdoing.
+- If a tool result has includes_possible_match=true, call those links "possible match" edges (soft, similar/same_as/underlying); they are not confirmed identities.
 - Keep the final answer short: the finding, the path in one line, the score.""
 """
 
-LIMITATIONS = ("Connection relevance only: appearing in this public ICIJ Offshore Leaks data "
-               "implies no wrongdoing. Scores rank how informative a recorded connection is.")
+LIMITATIONS = ("Connection relevance only: appearing in this public ICIJ leak data "
+               "implies no wrongdoing. Scores rank how informative a recorded connection is. "
+               "Soft-edge links are possible matches, never confirmed identities.")
 
 SERVER_CMD = [sys.executable, "backend/mcp_server/server.py"]
 

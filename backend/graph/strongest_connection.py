@@ -11,6 +11,8 @@ import os
 
 from falkordb import FalkorDB
 
+from backend.graph.rel_types import possible_matches
+
 HOST = os.getenv("FALKORDB_HOST", "localhost")
 PORT = int(os.getenv("FALKORDB_PORT", "6379"))
 GRAPH = os.getenv("GRAPH_NAME", "offshore")
@@ -91,6 +93,7 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
                      if ref_len is not None else "no path within max_hops")
         return {"source_id": source_id, "target_id": target_id, "hub_threshold": hub_threshold,
                 "max_hops": max_hops, "path": None, "score": None, "breakdown": [],
+                "includes_possible_match": False, "possible_match_edges": [],
                 "excluded_hubs": excluded, "reference_length": ref_len, "cypher": cypher,
                 "note": "; ".join(notes)}
     best, best_score, best_down = None, None, None
@@ -103,14 +106,22 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
         if best_score is None or score > best_score:
             best, best_score, best_down = (nodes, edges), score, down
     nodes, edges = best
+    path_edges = [{"rel_type": r[0], "link": r[1], "role_category": r[2],
+                   "status": r[3], "start_date": r[4], "end_date": r[5],
+                   "sourceID": r[6]} for r in edges]
+    soft = possible_matches(path_edges)
+    notes = [n for n in (timeout_note, ref_note) if n]
+    if soft:
+        notes.append("path includes possible-match edge(s) (" + ", ".join(soft)
+                     + "): records are linked, identity is not confirmed")
     return {"source_id": source_id, "target_id": target_id, "hub_threshold": hub_threshold,
             "max_hops": max_hops,
             "path": {"length": len(edges),
                      "nodes": [{"node_id": r[0], "name": r[1], "labels": r[2],
                                 "degree_core": r[3], "sourceID": r[4]} for r in nodes],
-                     "edges": [{"rel_type": r[0], "link": r[1], "role_category": r[2],
-                                "status": r[3], "start_date": r[4], "end_date": r[5],
-                                "sourceID": r[6]} for r in edges]},
-            "score": best_score, "breakdown": best_down, "excluded_hubs": excluded,
+                     "edges": path_edges},
+            "score": best_score, "breakdown": best_down,
+            "includes_possible_match": bool(soft), "possible_match_edges": soft,
+            "excluded_hubs": excluded,
             "reference_length": ref_len, "cypher": cypher,
-            "note": "; ".join(n for n in (timeout_note, ref_note) if n) or None}
+            "note": "; ".join(notes) or None}

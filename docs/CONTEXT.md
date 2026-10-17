@@ -1,8 +1,13 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 done; Phase 3a done; Phase 3b done; Phase 3c (UI fixes) done; Phase 3d (zoom control) done, browser-confirmed by Viraj; TEST_QUESTIONS re-graded.
-- Last completed: TEST_QUESTIONS re-grade (docs/TEST_RESULTS.md "Re-grade" section) —
+- Phase: 2 done; Phase 3a–3d done (3d browser-confirmed); TEST_QUESTIONS re-graded; **Phase 3e union graph built + verified, then STOPPED at the 90-min box** (Panama tier mining, union demo cache, browser soft-chip check pending).
+- Last completed: Phase 3e (commit is the record; full detail in DECISIONS D16 + PROGRESS 2026-10-17 22:35 IST) —
+  - Two graphs now: `offshore` (default, 278,693 / 562,700) and `icij` (union, 838,293 / 1,286,362, Portcullis 37,338 OK). Union scores shift ≈ +1.10 (T2Q1 10.45, T2Q2 12.01).
+  - Judgment calls recorded in D16: import_root hardlinks (LOAD CSV is root-only), volume mounted at both `/data` and `/var/lib/falkordb/data` (a recreate used to empty every graph), `GRAPH.CONFIG SET TIMEOUT 600000` before bulk loads, `ensure_search_indexes()` after any `--drop`.
+  - Soft-edge flags live: `backend/graph/rel_types.py`; all three tools return `includes_possible_match` + `possible_match_edges` + note; agent rule + MCP text updated. Eton similar pair flags true; core paths flag false.
+  - Pending from the 3e box: mining the 4 Panama-only + 1 hub-blocked + 1 cross-slice `same_as` demo pairs into a TEST_QUESTIONS tier, the union demo cache, Viraj's browser check of the soft chip.
+- Previously: TEST_QUESTIONS re-grade (docs/TEST_RESULTS.md "Re-grade" section) —
   - 12 cached questions re-sent through `POST /ask`: all PASS with rid + question echo (covers the old "question bar changes / wrong answer" bug class at the API level) and outcome checks; 0 LLM.
   - 11 tool-level checks for the uncached items: all PASS (MIRALEY 1 hit; Gridnev 1-hop officer_of; M.Y.Y. shares 51221+234955; address question 0 hits; Mitchell/Blue Bottle resolve; 54662 has both labels; Eton pair + similar edge).
   - Doc drift found: "The M.Y.Y. Trust" is NOT unique (3 hits → agent must ask to pick); Portcullis name search now returns 7 hits (doc said 8).
@@ -67,7 +72,12 @@
 - pkill -f matches your own shell cmdline (suicide, empty output) — use a bracket pattern; stale uvicorn on :8000 shows "address already in use" in runs/uvicorn.log. The bracket trick still fails if the SAME command line also starts uvicorn (the literal "uvicorn backend.app.main" in the start half matches): run the kill and the start as SEPARATE commands, then confirm with /health.
 - 61s agent runs = Groq 429 OTPM-1000 retries on qwen3-27b on_demand (code itself ~0.5s: startup 0.5s, search 0.0s, strongest 0.2s, trivial LLM 0.7s) — provider/model cause, not worked around; cache sidesteps repeats.
 - Address records carry street text in the address field with empty names — name search cannot resolve hub addresses; test set documents this instead of routing around it.
-- Docker Desktop can be fully down (no daemon): relaunch the per-user exe, then `docker compose up -d`; background servers need setsid to survive the shell (nohup alone died).
+- Docker Desktop can be fully down (no daemon): relaunch the per-user exe, then `docker compose up -d`; background servers need setsid to survive the shell (nohup alone died). 2026-10-17 update: even `setsid`+`&` from the agent tool wrapper gets reaped — start uvicorn with tmux: `tmux new-session -d -s uvicorn '.venv/bin/python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 >> runs/uvicorn.log 2>&1'`, then confirm `/health`.
+- FalkorDB volume: the image persists in `/var/lib/falkordb/data` (symlinked from `/data/data`), so the named volume must be mounted at BOTH paths or any container recreate silently empties every graph (happened once; recovery = reload from the untouched prepared folder, 14s). After any `--drop` reload also run `ensure_search_indexes()` (`runs/ensure_idx.py` pattern, `GRAPH_NAME=icij` for the union) or name search returns 0 hits.
+- Bulk loads: `FALKORDB_ARGS` in the image ships `TIMEOUT 1000` (ms) — raise with `docker exec <c> redis-cli GRAPH.CONFIG SET TIMEOUT 600000` before loading a graph, and expect to redo this after every container recreate (it is not persisted).
+- LOAD CSV resolves URIs ONLY at the import root; `../`, absolute paths, and mounts nested under a `:ro` parent all fail. The import root is `DATA_DIR/import_root` (hardlinks of `prepared/*` + `prepared_icij/*` under `icij/`); after regenerating a prepared folder, re-create its hardlinks (`cp -l <prepared>/* import_root/[icij/]`).
+- Node ids are STRINGS in the graph (CSV-sourced): ad-hoc Cypher probes must quote them (`{node_id: '290583'}` or string params); the tools always pass them back as returned by search, so they are unaffected.
+- `scripts/try_tools.py` now imports `backend.graph.*` with `sys.path.insert(0, ".")` — keep new graph-layer imports in the `backend.graph.x` style (agent/app/MCP all use that style).
 - WSL `docker` CLI depends on Desktop's per-distro integration: if `wsl docker` fails but Windows `docker` works, re-enable Ubuntu integration (or restart Desktop); containers created while it was off can carry empty bind mounts → `--force-recreate` after fixing.
 - Keep outputs small: summaries only, never dump raw CSV rows (max 3 lines per file).
 - Multi-line `python - <<'EOF'` heredocs get mangled going PowerShell -> wsl (parentheses/quotes break); write the snippet to a file under the gitignored `runs/` and run it, then delete it.

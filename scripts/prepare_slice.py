@@ -1,9 +1,12 @@
-"""Build load-ready Offshore Leaks slice files (no DB writes, no import code).
+"""Build load-ready slice files (no DB writes, no import code).
 
-Reads source CSVs from DATA_DIR, writes DATA_DIR/prepared/.
-Slice = nodes with node-file sourceID == SLICE; edges kept iff both ends inside.
+Reads source CSVs from DATA_DIR; with no arguments writes DATA_DIR/prepared/
+for the Offshore Leaks slice exactly as before. `--slices "A,B" --out DIR`
+builds a multi-dataset graph: nodes with node-file sourceID in the set,
+edges kept iff both ends are inside, degrees recomputed over that union.
 Degrees follow D2: undirected distinct neighbors over in-slice edges.
 """
+import argparse
 import csv
 import os
 import re
@@ -11,7 +14,7 @@ import resource
 import time
 
 DATA_DIR = os.getenv("DATA_DIR", "/home/viraj/data/icij")
-SLICE = "Offshore Leaks"  # dataset-specific constant lives here per D11
+SLICE = "Offshore Leaks"  # dataset-specific default lives here per D11
 OUT = os.path.join(DATA_DIR, "prepared")
 CORE = {"officer_of", "intermediary_of", "registered_address"}
 NODE_FILES = {  # source file -> label set
@@ -48,26 +51,34 @@ def safe(s):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--slices", default=SLICE, help="comma-separated node sourceID values")
+    ap.add_argument("--out", default=OUT, help="output directory (must be empty)")
+    ap.add_argument("--expect-nodes", type=int, default=278693, help="CHECK value, default = Offshore Leaks")
+    ap.add_argument("--expect-edges", type=int, default=562700, help="CHECK value, default = Offshore Leaks")
+    args = ap.parse_args()
+    slices = {s.strip() for s in args.slices.split(",") if s.strip()}
+    out_dir = args.out
     t0 = time.perf_counter()
-    if os.path.isdir(OUT) and os.listdir(OUT):
-        raise SystemExit(f"refusing to mix with existing files in {OUT}")
-    os.makedirs(OUT, exist_ok=True)
+    if os.path.isdir(out_dir) and os.listdir(out_dir):
+        raise SystemExit(f"refusing to mix with existing files in {out_dir}")
+    os.makedirs(out_dir, exist_ok=True)
     ids = {t: set() for t in NODE_FILES.values()}  # label set -> slice ids
     for fn, typ in NODE_FILES.items():
         with open(os.path.join(DATA_DIR, fn), newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
-                if row.get("sourceID") != SLICE:
+                if row.get("sourceID") not in slices:
                     continue
                 ids[typ].add(row.get("node_id", ""))
     colliding = ids["officer"] & ids["intermediary"]
     pairs = {nid: [None, None] for nid in colliding}  # id -> [officer row, intermediary row]
     with open(os.path.join(DATA_DIR, "nodes-officers.csv"), newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
-            if row.get("sourceID") == SLICE and row.get("node_id", "") in pairs:
+            if row.get("sourceID") in slices and row.get("node_id", "") in pairs:
                 pairs[row["node_id"]][0] = row
     with open(os.path.join(DATA_DIR, "nodes-intermediaries.csv"), newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
-            if row.get("sourceID") == SLICE and row.get("node_id", "") in pairs:
+            if row.get("sourceID") in slices and row.get("node_id", "") in pairs:
                 pairs[row["node_id"]][1] = row
     inside = set().union(*ids.values())
     only_inter = ids["intermediary"] - ids["officer"]
@@ -93,7 +104,7 @@ def main():
             rc = role_of(row.get("link"))
             w = writers.get(r)
             if w is None:
-                fh = open(os.path.join(OUT, f"edges_{safe(r) or 'unknown'}.csv"), "w", newline="", encoding="utf-8")
+                fh = open(os.path.join(out_dir, f"edges_{safe(r) or 'unknown'}.csv"), "w", newline="", encoding="utf-8")
                 w = csv.DictWriter(fh, fieldnames=["node_id_start", "node_id_end", "rel_type", "link",
                                                    "role_category", "status", "start_date", "end_date", "sourceID"])
                 w.writeheader()
@@ -124,12 +135,12 @@ def main():
         with open(os.path.join(DATA_DIR, src), newline="", encoding="utf-8") as f:
             rdr = csv.DictReader(f)
             fields = list(rdr.fieldnames) + ["degree_core", "degree_all"]
-            out = open(os.path.join(OUT, f"nodes_{label}.csv"), "w", newline="", encoding="utf-8")
+            out = open(os.path.join(out_dir, f"nodes_{label}.csv"), "w", newline="", encoding="utf-8")
             w = csv.DictWriter(out, fieldnames=fields, extrasaction="ignore")
             w.writeheader()
             n = 0
             for row in rdr:
-                if row.get("sourceID") != SLICE or row.get("node_id", "") not in members:
+                if row.get("sourceID") not in slices or row.get("node_id", "") not in members:
                     continue
                 row["degree_core"] = len(deg_core.get(row["node_id"], ()))
                 row["degree_all"] = len(deg_all.get(row["node_id"], ()))
@@ -140,7 +151,7 @@ def main():
     both_fields = (["node_id", "name", "countries", "country_codes", "sourceID", "valid_until", "note",
                     "status", "internal_id", "address", "officer_name", "intermediary_name", "name_mismatch",
                     "degree_core", "degree_all"])
-    out = open(os.path.join(OUT, "nodes_intermediary_officer.csv"), "w", newline="", encoding="utf-8")
+    out = open(os.path.join(out_dir, "nodes_intermediary_officer.csv"), "w", newline="", encoding="utf-8")
     w = csv.DictWriter(out, fieldnames=both_fields, extrasaction="ignore")
     w.writeheader()
     n = 0
@@ -150,7 +161,7 @@ def main():
         merged = {"node_id": nid, "name": o_row.get("name") or m_row.get("name"),
                   "countries": o_row.get("countries") or m_row.get("countries"),
                   "country_codes": o_row.get("country_codes") or m_row.get("country_codes"),
-                  "sourceID": SLICE, "valid_until": o_row.get("valid_until") or m_row.get("valid_until"),
+                  "sourceID": o_row.get("sourceID") or m_row.get("sourceID"), "valid_until": o_row.get("valid_until") or m_row.get("valid_until"),
                   "note": o_row.get("note") or m_row.get("note"),
                   "status": m_row.get("status", ""), "internal_id": m_row.get("internal_id", ""),
                   "address": m_row.get("address", ""),
@@ -166,9 +177,9 @@ def main():
     n_total = sum(node_counts.values())
     e_total = sum(edge_counts.values())
     order = ["address", "entity", "intermediary", "officer", "intermediary_officer", "other"]
-    print(f"prepared_dir={OUT} slice={SLICE}")
-    print("nodes " + " ".join(f"{k}={node_counts.get(k, 0)}" for k in order) + f" total={n_total} CHECK={'OK' if n_total == 278693 else 'MISMATCH'}")
-    print("edges " + " ".join(f"{safe(k)}={v}" for k, v in sorted(edge_counts.items(), key=lambda kv: -kv[1])) + f" total={e_total} CHECK={'OK' if e_total == 562700 else 'MISMATCH'}")
+    print(f"prepared_dir={out_dir} slices={','.join(sorted(slices))}")
+    print("nodes " + " ".join(f"{k}={node_counts.get(k, 0)}" for k in order) + f" total={n_total} CHECK={'OK' if n_total == args.expect_nodes else 'MISMATCH'}")
+    print("edges " + " ".join(f"{safe(k)}={v}" for k, v in sorted(edge_counts.items(), key=lambda kv: -kv[1])) + f" total={e_total} CHECK={'OK' if e_total == args.expect_edges else 'MISMATCH'}")
     print("role_category " + " ".join(f"{k}={v}" for k, v in sorted(role_counts.items(), key=lambda kv: -kv[1])))
     rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     print(f"peak_rss_mb={rss_mb:.0f} runtime_s={time.perf_counter()-t0:.0f}")

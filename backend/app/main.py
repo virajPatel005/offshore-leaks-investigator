@@ -62,10 +62,15 @@ def clean_pins(pins):
 
 def cache_key(question, pins):
     """Plain question text when unpinned (old cache stays valid); pinned runs
-    get their own key so the chosen record is part of the identity."""
+    get their own key so the chosen record is part of the identity. Non-default
+    graphs get a name prefix so one graph's answer is never served for another
+    (the default graph keeps the shipped keys readable as-is)."""
     k = norm(question)
     if pins:
         k += " |pins " + " ".join(f"{norm(n)}={pins[n]}" for n in sorted(pins, key=norm))
+    graph = os.getenv("GRAPH_NAME", "offshore")
+    if graph != "offshore":
+        k = f"{graph}|{k}"
     return k
 
 

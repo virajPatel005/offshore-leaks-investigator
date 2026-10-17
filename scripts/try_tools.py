@@ -2,11 +2,11 @@
 import sys
 import time
 
-sys.path.insert(0, "backend")
+sys.path.insert(0, ".")
 
-from graph.search_entity import search_entity
-from graph.shared_neighbors import shared_neighbors
-from graph.strongest_connection import strongest_connection
+from backend.graph.search_entity import search_entity
+from backend.graph.shared_neighbors import shared_neighbors
+from backend.graph.strongest_connection import strongest_connection
 
 PAIRS = [("123345", "170362"), ("108190", "21573"), ("108052", "123363")]
 

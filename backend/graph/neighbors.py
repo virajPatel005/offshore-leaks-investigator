@@ -11,6 +11,8 @@ import os
 
 from falkordb import FalkorDB
 
+from backend.graph.rel_types import possible_matches
+
 HOST = os.getenv("FALKORDB_HOST", "localhost")
 PORT = int(os.getenv("FALKORDB_PORT", "6379"))
 GRAPH = os.getenv("GRAPH_NAME", "offshore")
@@ -48,6 +50,7 @@ def get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False):
     center = g.query(Q_CENTER, {"id": node_id}, timeout=QUERY_TIMEOUT_MS).result_set
     if not center:
         return {"node_id": node_id, "error": f"no node with node_id {node_id}", "neighbors": [],
+                "includes_possible_match": False, "possible_match_edges": [],
                 "excluded_hubs": [], "cypher": [Q_CENTER]}
     cid, cname, clabels, cdeg, ccc, csid = center[0]
     cdeg = cdeg or 0
@@ -55,6 +58,7 @@ def get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False):
     base = {"node_id": cid, "name": cname, "labels": clabels, "degree_core": cdeg,
             "country_codes": ccc, "sourceID": csid,
             "hub_threshold": hub_threshold, "allow_hub": bool(allow_hub), "is_hub": is_hub,
+            "includes_possible_match": False, "possible_match_edges": [],
             "neighbors": [], "excluded_hubs": [], "cypher": [Q_CENTER]}
     if is_hub and not allow_hub:
         base["note"] = (f"hub: neighbours not expanded by default ({cname} has degree_core {cdeg} "
@@ -77,7 +81,12 @@ def get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False):
         notes.append(f"hub override: showing up to {limit} of {total} neighbours, high-degree ones still filtered")
     if total > len(neighbors):
         notes.append(f"showing {len(neighbors)} of {total} neighbours (limit {limit})")
+    soft = possible_matches(neighbors)
+    if soft:
+        notes.append("shown link(s) include possible-match edge(s) (" + ", ".join(soft)
+                     + "): records are linked, identity is not confirmed")
     base.update({"neighbors": neighbors, "excluded_hubs": excluded, "total_neighbors": total,
                  "shown": len(neighbors), "cypher": [Q_CENTER, cypher, Q_COUNT, Q_HUB % HUB_LIST_LIMIT],
+                 "includes_possible_match": bool(soft), "possible_match_edges": soft,
                  "note": "; ".join(notes) or None})
     return base
