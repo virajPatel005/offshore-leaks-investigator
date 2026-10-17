@@ -211,6 +211,7 @@ Honest list — these are **documented, not hidden** (each one is recorded in `d
 ## Data & attribution
 
 - Data: **ICIJ Offshore Leaks Database** (and Panama Papers in the union graph) — <https://offshoreleaks.icij.org>. CSV downloads, license and terms: see the [database page](https://offshoreleaks.icij.org/pages/database). Data © ICIJ and contributors.
+- **Code license:** MIT (see [`LICENSE`](LICENSE)) — it covers the code in this repository only; the ICIJ data is **not** covered by it and keeps its own terms.
 - Raw CSVs are **never committed** to this repo (`*.csv` is gitignored); only derived slice files live outside the repo under `$DATA_DIR`.
 - **This project is an independent demonstration. Appearing in this data does not imply wrongdoing, and none of these outputs imply anything about any person or company.** The agent is additionally instructed to use neutral language, to call soft edges "possible match", and to repeat this disclaimer at the end of every answer.
 - Real personal names appear in the data (as published by ICIJ); the UI and answers deliberately avoid characterizing people or entities.
