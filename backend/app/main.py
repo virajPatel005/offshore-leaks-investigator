@@ -149,6 +149,19 @@ def health():
         raise HTTPException(503, f"graph unreachable: {type(ex).__name__}")
 
 
+@app.get("/neighbors")
+def neighbors(node_id: str, hub_threshold: int = 1000, limit: int = 25, allow_hub: bool = False):
+    """Read-only graph expansion for the UI; no LLM involved."""
+    if not node_id or not node_id.strip():
+        raise HTTPException(400, "node_id required")
+    from backend.graph.neighbors import get_neighbors
+
+    try:
+        return get_neighbors(node_id, hub_threshold=hub_threshold, limit=limit, allow_hub=allow_hub)
+    except Exception:
+        raise HTTPException(502, "neighbor expansion failed")
+
+
 @app.post("/ask")
 async def ask(body: AskBody):
     if not body.question or not body.question.strip():

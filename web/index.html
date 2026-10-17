@@ -3,195 +3,455 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c1116">
 <title>Offshore Investigator</title>
 <style>
-  :root { color-scheme: dark; }
-  body { background: #0d1117; color: #e6edf3; font-family: system-ui, sans-serif; margin: 0 auto; max-width: 960px; padding: 16px; }
-  #banner { background: #3b2f00; border: 1px solid #9e7c00; padding: 10px; border-radius: 6px; margin-bottom: 16px; }
-  #q { width: 100%; box-sizing: border-box; padding: 10px; font-size: 1rem; }
-  button { margin: 6px 6px 6px 0; padding: 8px 12px; cursor: pointer; }
-  .ex { background: #161b22; border: 1px solid #30363d; color: #e6edf3; border-radius: 6px; }
-  #askbtn { background: #1f6feb; border: none; color: white; border-radius: 6px; }
-  .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 12px; white-space: pre-wrap; }
-  table { border-collapse: collapse; width: 100%; }
-  td, th { border: 1px solid #30363d; padding: 6px; text-align: left; }
-  details { margin-top: 6px; }
-  summary { cursor: pointer; }
-  code { font-size: 0.85rem; }
-  .hubtag { fill: #ff7b72; font-size: 11px; font-weight: bold; }
-  #status { color: #8b949e; margin-top: 8px; }
+  /* Tokens: cool-slate dark ramp, one hue per category, accent for interaction.
+     Components reference semantic tokens only; primitives are never used raw. */
+  :root {
+    color-scheme: dark;
+    --n-900: #0c1116; --n-800: #0f151d; --n-700: #121924; --n-600: #182130; --n-500: #26313f;
+    --n-400: #364455; --n-300: #7f8d9a; --n-200: #9aa8b6; --n-100: #dce3ea; --n-050: #f4f7fa;
+    --a-500: #2fd4c6;
+    --cat-entity: #4dabf7; --cat-officer: #51cf66; --cat-intermediary: #f2a33c;
+    --cat-address: #b197fc; --cat-merged: #f783ac; --cat-hub: #ff7b72;
 
-  /* Onboarding */
-  #howto { margin-top: 12px; }
-  #howto ol { margin: 6px 0 0 0; padding-left: 20px; }
-  #howto li { margin: 2px 0; }
-  .examples { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
-  .exwrap { max-width: 220px; }
-  .exwrap .ex { width: 100%; }
-  .exdesc { color: #8b949e; font-size: 0.82rem; margin: 0 0 6px 2px; }
+    --bg-page: var(--n-900); --bg-surface: var(--n-700); --bg-elevated: var(--n-600);
+    --border: var(--n-500); --border-strong: var(--n-400);
+    --text-primary: var(--n-100); --text-secondary: var(--n-200); --text-muted: var(--n-300);
+    --accent: var(--a-500); --focus: var(--a-500);
+    --soft-edge: var(--n-300);
+    --warn-bg: #2a2410; --warn-border: #6e5c1f; --warn-text: #f0d98a;
+    --radius: 10px; --radius-sm: 6px;
+    --mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg-page); color: var(--text-primary); font-family: var(--sans); }
+  body { margin: 0 auto; max-width: 1000px; padding: 0 16px 140px; line-height: 1.55; }
+  h1 { font-size: 1.35rem; font-weight: 650; letter-spacing: -0.01em; margin: 18px 0 10px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button { font: inherit; cursor: pointer; }
+
+  /* Banner stays visible while the thread scrolls. */
+  #banner { position: sticky; top: 0; z-index: 20; background: var(--warn-bg);
+    border: 1px solid var(--warn-border); color: var(--warn-text);
+    padding: 9px 12px; border-radius: var(--radius-sm); margin: 12px 0; font-size: .9rem; }
+
+  /* Thread */
+  #thread { display: flex; flex-direction: column; gap: 16px; }
+  .empty { color: var(--text-muted); border: 1px dashed var(--border-strong);
+    border-radius: var(--radius); padding: 22px; text-align: center; }
+  .card { background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; scroll-margin-top: 60px; }
+  .q { display: flex; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+  .q .chev { color: var(--accent); font-weight: 700; }
+  .q .qtext { font-weight: 600; font-size: 1.02rem; }
+  .status { color: var(--text-muted); font-size: .88rem; }
+  .using { display: inline-block; margin-top: 8px; color: var(--accent);
+    border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 10px; font-size: .82rem; }
+  .answer { white-space: pre-wrap; margin: 6px 0 2px; }
+  .muted { color: var(--text-muted); font-size: .86rem; }
+  .block { margin-top: 12px; }
+  .block > .h { font-weight: 650; font-size: .92rem; margin-bottom: 6px; }
+
+  /* Graph + side card */
+  .graphrow { display: flex; gap: 12px; align-items: stretch; }
+  .graph { flex: 1; min-width: 0; height: 250px; background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .side { width: 232px; flex: none; background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px; font-size: .86rem; }
+  .side .name { font-weight: 650; margin-bottom: 4px; }
+  .side dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 6px 0; }
+  .side dt { color: var(--text-muted); }
+  .side dd { margin: 0; font-family: var(--mono); font-size: .8rem; word-break: break-all; }
+  .side .hint { color: var(--text-muted); }
 
   /* Legend */
-  .legend { color: #c9d1d9; font-size: 0.85rem; margin-top: 8px; }
-  .legend .sw { margin-right: 10px; white-space: nowrap; }
-  .legend .sw::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; background: var(--c); vertical-align: middle; }
-  .legend .hubkey { color: #ff7b72; font-weight: bold; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px;
+    color: var(--text-secondary); font-size: .82rem; }
+  .legend .key { display: inline-flex; align-items: center; gap: 5px; }
+  .legend .dot { width: 11px; height: 11px; border-radius: 50%; border: 2px solid currentColor; }
+  .legend .hubdot { border-width: 4px; border-style: double; border-color: var(--cat-hub); background: none; }
+  .legend .dash { width: 20px; border-top: 2px dashed var(--soft-edge); }
 
-  /* Disambiguation */
-  .using { background: #12261a; border-color: #2ea043; }
-  .cand { margin-top: 8px; }
-  .candbtn { background: #21262d; border: 1px solid #58a6ff; color: #e6edf3; border-radius: 6px; padding: 6px 10px; margin: 4px 4px 4px 0; }
-  .candbtn code { color: #8b949e; }
+  /* Buttons */
+  .btn { background: var(--n-050); color: var(--n-900); border: none;
+    border-radius: var(--radius-sm); padding: 9px 16px; font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--border-strong); font-weight: 500; }
+  .chip { background: var(--bg-elevated); border: 1px solid var(--border-strong);
+    color: var(--text-primary); border-radius: 999px; padding: 5px 12px; font-size: .85rem; }
+  .candbtn { background: var(--bg-elevated); border: 1px solid var(--accent); color: var(--text-primary);
+    border-radius: var(--radius-sm); padding: 7px 11px; margin: 4px 6px 0 0; text-align: left; }
+  .candbtn .id { font-family: var(--mono); color: var(--text-muted); font-size: .8rem; }
+
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; font-size: .86rem; }
+  th, td { border: 1px solid var(--border); padding: 5px 8px; text-align: left; }
+  th { color: var(--text-secondary); font-weight: 600; }
+  td.num { font-family: var(--mono); text-align: right; }
+
+  details { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+  summary { cursor: pointer; color: var(--text-secondary); }
+  .step { border-left: 2px solid transparent; padding-left: 8px; margin-top: 6px; }
+  .step:hover { border-left-color: var(--accent); }
+  .step button { background: none; border: 0; color: inherit; font: inherit; text-align: left;
+    padding: 0; width: 100%; cursor: pointer; border-radius: 4px; }
+  .step .lbl { font-weight: 600; font-size: .88rem; }
+  .step code, pre { font-family: var(--mono); font-size: .78rem; color: var(--text-secondary); }
+  pre { overflow-x: auto; background: var(--bg-page); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px; }
+  .warn { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text);
+    border-radius: var(--radius-sm); padding: 8px 10px; font-size: .86rem; margin-top: 8px; }
+
+  /* Composer */
+  #composer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    background: var(--bg-page); border-top: 1px solid var(--border); }
+  #composer .inner { max-width: 1000px; margin: 0 auto; padding: 10px 16px 12px; }
+  #exchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .inputrow { display: flex; gap: 8px; }
+  #q { flex: 1; background: var(--bg-surface); color: var(--text-primary);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 11px 12px; font-size: 1rem; }
+  @media (max-width: 660px) { .graphrow { flex-direction: column; } .side { width: auto; } }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>
 <div id="banner">Appearing in the ICIJ Offshore Leaks database does not imply wrongdoing.</div>
 <h1>Offshore Investigator</h1>
 
-<div id="howto" class="card">
-  <b>How to use</b>
-  <ol>
-    <li>Pick an example, or type two names.</li>
-    <li>If several matches appear, click the one you mean.</li>
-    <li>Read the path, the score and the trace below.</li>
-  </ol>
+<div id="thread">
+  <div class="empty">Ask about a recorded connection between two people or companies.<br>
+    If a name matches several records, you will be asked to pick one.</div>
 </div>
 
-<div class="examples">
-  <div class="exwrap"><button class="ex" data-q="What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?">Clean pair</button>
-    <div class="exdesc">Two companies joined by one recorded address link.</div></div>
-  <div class="exwrap"><button class="ex" data-q="What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?">Hub-blocked pair</button>
-    <div class="exdesc">A route exists only through a very high-degree hub, so the hub is excluded and named.</div></div>
-  <div class="exwrap"><button class="ex" data-q="What connects Zzxq Qqq Nonexistent to BRAVO ENTERPRISES LIMITED?">Unknown name</button>
-    <div class="exdesc">A name that is not in the data: shows the plain no-record wording.</div></div>
-  <div class="exwrap"><button class="ex" data-q="What is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?">Ambiguous name</button>
-    <div class="exdesc">Two different records share this name: click the one you mean.</div></div>
-  <div class="exwrap"><button class="ex" data-q="What is the strongest recorded connection between Lee, Chung-Han and BRAVO ENTERPRISES LIMITED?">Ambiguous name (2)</button>
-    <div class="exdesc">Two officers share this name: pick one to see the recorded path.</div></div>
-</div>
-<div>
-  <button id="askbtn">Ask (live trace)</button>
+<div id="composer">
+  <div class="inner">
+    <div id="exchips"></div>
+    <div class="inputrow">
+      <input id="q" name="question" autocomplete="off" placeholder="Ask about a connection…" aria-label="Your question">
+      <button id="askbtn" class="btn">Ask</button>
+    </div>
+  </div>
 </div>
 
-<div class="legend">
-  <b>Legend:</b>
-  <span class="sw" style="--c:#58a6ff">Entity</span>
-  <span class="sw" style="--c:#3fb950">Officer</span>
-  <span class="sw" style="--c:#d29922">Intermediary</span>
-  <span class="sw" style="--c:#bc8cff">Address</span>
-  <span class="hubkey">HUB</span> = high-degree node (excluded from the path)
-</div>
-
-<input id="q" placeholder="Ask about a connection…" size="80">
-<div id="status"></div>
-<div id="out"></div>
+<script src="/vendor/cytoscape.min.js"></script>
 <script>
-// One-line justification: hand-rolled SVG needs no dependency, works offline in a recording, and the layout code stays explainable.
-const COLORS = {Entity: "#58a6ff", Officer: "#3fb950", Intermediary: "#d29922", Address: "#bc8cff"};
+"use strict";
+const T = {};
+const SOFT = new Set(["similar", "same_as", "same_id_as", "same_name_as", "same_company_as",
+                      "probably_same_officer_as", "same_address_as", "underlying"]);
+const HUB_THRESHOLD = 1000;
+const MONO = getComputedStyle(document.documentElement).getPropertyValue("--mono").trim();
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-function graphSVG(nodes, edges, hubs) {
-  const hubIds = new Set((hubs || []).map(h => h.node_id));
-  const W = 900, X0 = 90, DX = Math.min(260, (W - 180) / Math.max(1, nodes.length - 1 || 1));
-  let s = `<svg viewBox="0 0 ${W} 190" width="100%" role="img" aria-label="evidence path graph">`;
-  nodes.forEach((n, i) => {
-    const x = X0 + i * DX, isHub = hubIds.has(n.node_id);
-    if (i) {
-      const x0 = X0 + (i - 1) * DX;
-      s += `<line x1="${x0 + 60}" y1="80" x2="${x - 60}" y2="80" stroke="#8b949e" stroke-width="2" marker-end="url(#ar)"/>`;
-      s += `<text x="${(x0 + x) / 2}" y="70" fill="#c9d1d9" font-size="12" text-anchor="middle">${esc((edges[i - 1] || {}).rel_type || "")}</text>`;
+const norm = s => String(s || "").toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  ["bg-page","bg-surface","bg-elevated","border","border-strong","text-primary","text-secondary",
+   "text-muted","accent","soft-edge","cat-entity","cat-officer","cat-intermediary","cat-address",
+   "cat-merged","cat-hub"].forEach(k => T[k.replace(/-(\w)/g, (_, c) => c.toUpperCase())] = cs.getPropertyValue("--" + k).trim());
+}
+readTokens();
+
+const CAT_COLOR = { Entity: () => T.catEntity, Officer: () => T.catOfficer,
+  Intermediary: () => T.catIntermediary, Address: () => T.catAddress };
+function labelColor(labels) {
+  labels = labels || [];
+  if (labels.includes("Officer") && labels.includes("Intermediary")) return T.catMerged;
+  for (const l of ["Entity", "Officer", "Intermediary", "Address"]) if (labels.includes(l)) return CAT_COLOR[l]();
+  return T.textMuted;
+}
+function labelName(labels) {
+  labels = labels || [];
+  if (labels.includes("Officer") && labels.includes("Intermediary")) return "Officer + Intermediary";
+  return labels[0] || "?";
+}
+const nodeSize = deg => Math.round(16 + Math.min(30, Math.log2((deg || 1) + 1) * 5.2));
+const shortName = (s, n = 22) => { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+
+const GRAPH_STYLE = [
+  { selector: "node", style: {
+    "background-color": "data(color)", "border-color": "data(color)", "border-width": 2,
+    width: "data(size)", height: "data(size)", label: "data(label)",
+    color: "data(labelColor)", "font-family": MONO, "font-size": 10,
+    "text-valign": "bottom", "text-halign": "center", "text-margin-y": 5,
+    "text-outline-width": 3, "text-outline-color": "data(bg)", "min-zoomed-font-size": 0 } },
+  { selector: "node[?hub]", style: { "border-width": 5, "border-color": "data(hubColor)", "border-style": "double" } },
+  { selector: "edge", style: {
+    width: 1.6, "line-color": "data(edgeColor)", "target-arrow-color": "data(edgeColor)",
+    "target-arrow-shape": "triangle", "arrow-scale": 0.85, "curve-style": "bezier",
+    label: "data(label)", "font-family": MONO, "font-size": 9, color: "data(edgeLabelColor)",
+    "text-rotation": "autorotate", "text-background-color": "data(bg)", "text-background-opacity": 0.9,
+    "text-background-padding": "2px" } },
+  { selector: "edge[?soft]", style: { "line-style": "dashed", "line-color": "data(softColor)" } },
+  { selector: ".dim", style: { opacity: 0.18 } },
+  { selector: ".flash", style: { "border-width": 6, "border-color": "data(flashColor)", "border-style": "solid" } }
+];
+
+const CARDS = [];
+let autoId = 0;
+
+function newCardEl(question, pinInfo) {
+  const el = document.createElement("section");
+  el.className = "card";
+  el.innerHTML =
+    `<div class="q"><span class="chev">›</span><span class="qtext">${esc(question)}</span></div>` +
+    (pinInfo ? `<div class="using">Using: ${esc(pinInfo.name)} (${esc(pinInfo.label)}, ${esc(pinInfo.country)})</div>` : "") +
+    `<div class="status" role="status" aria-live="polite">Working…</div><div class="body"></div>`;
+  return el;
+}
+
+function nodeData(n, hubIds) {
+  const deg = n.degree_core ?? 0;
+  return { id: String(n.node_id), label: shortName(n.name || n.node_id), full: n.name || String(n.node_id),
+    labels: n.labels || [], color: labelColor(n.labels), labelColor: T.textPrimary, bg: T.bgElevated,
+    size: nodeSize(deg), deg, country: n.country_codes || "", source: n.sourceID || "",
+    hub: deg > HUB_THRESHOLD || hubIds.has(String(n.node_id)), hubColor: T.catHub, flashColor: T.accent };
+}
+function pathElements(r) {
+  const hubIds = new Set((r.excluded_hubs || []).map(h => String(h.node_id)));
+  const nodes = (r.evidence_path || {}).nodes || [], edges = (r.evidence_path || {}).edges || [];
+  const els = nodes.map(n => ({ data: nodeData(n, hubIds) }));
+  edges.forEach((e, i) => {
+    const a = nodes[i], b = nodes[i + 1];
+    if (!a || !b) return;
+    const soft = SOFT.has(e.rel_type);
+    els.push({ data: { id: `e_${a.node_id}_${b.node_id}_${i}_${e.rel_type}`, source: String(a.node_id),
+      target: String(b.node_id), rel: e.rel_type, soft,
+      label: `${e.rel_type || ""}${soft ? " (possible match)" : ""}`,
+      edgeColor: T.softEdge, softColor: T.softEdge, edgeLabelColor: T.textSecondary, bg: T.bgElevated } });
+  });
+  return els;
+}
+
+function buildGraph(container, els, card) {
+  const cy = cytoscape({ container, elements: els, wheelSensitivity: 0.2, minZoom: 0.35, maxZoom: 2.5,
+    style: GRAPH_STYLE, layout: layoutOpts(card) });
+  cy.on("tap", "node", evt => selectNode(card, evt.target.id()));
+  cy.on("tap", evt => { if (evt.target === cy) card.cy.elements().unselect(); });
+  return cy;
+}
+function layoutOpts(card) {
+  const roots = card.rootId ? [card.rootId] : undefined;
+  return { name: "breadthfirst", directed: false, roots, padding: 14, spacingFactor: 1.25,
+           nodeDimensionsIncludeLabels: true, animate: !reduced, animationDuration: 300 };
+}
+function relayout(cy, card) { cy.layout(layoutOpts(card)).run(); }
+
+function selectNode(card, id) {
+  const n = card.cy.getElementById(id);
+  const d = n.data();
+  const side = card.el.querySelector(".side");
+  const labels = labelName(d.labels);
+  const hubWarn = d.hub ? `<div class="warn">hub: high-degree node (degree ${d.deg}).</div>` : "";
+  side.innerHTML =
+    `<div class="name">${esc(d.full)}</div>` +
+    `<dl><dt>label</dt><dd>${esc(labels)}</dd>` +
+    `<dt>country</dt><dd>${esc(d.country || "—")}</dd>` +
+    `<dt>degree</dt><dd>${d.deg}</dd>` +
+    `<dt>sourceID</dt><dd>${esc(d.source || "—")}</dd></dl>` +
+    hubWarn +
+    `<button class="btn ghost expand">Expand neighbours</button>`;
+  side.querySelector(".expand").onclick = () => expand(card, id, false);
+  card.cy.nodes().unselect();
+  n.select();
+}
+
+async function expand(card, nodeId, allowHub) {
+  const side = card.el.querySelector(".side");
+  const urls = `/neighbors?node_id=${encodeURIComponent(nodeId)}&hub_threshold=${HUB_THRESHOLD}&limit=25&allow_hub=${allowHub ? 1 : 0}`;
+  side.insertAdjacentHTML("beforeend", `<div class="muted loading">Loading neighbours…</div>`);
+  let r;
+  try { r = await (await fetch(urls)).json(); }
+  catch (e) { side.querySelector(".loading")?.remove(); side.insertAdjacentHTML("beforeend", `<div class="muted">Could not load neighbours.</div>`); return; }
+  side.querySelector(".loading")?.remove();
+  if (r.error) { side.insertAdjacentHTML("beforeend", `<div class="muted">${esc(r.error)}</div>`); return; }
+  if (r.is_hub && !allowHub) {
+    side.insertAdjacentHTML("beforeend",
+      `<div class="warn">hub: neighbours not expanded by default (degree ${r.degree_core}).</div>` +
+      `<button class="btn ghost expandany" style="margin-top:8px">Expand anyway</button>`);
+    side.querySelector(".expandany").onclick = () => expand(card, nodeId, true);
+    return;
+  }
+  const added = addNeighbors(card, nodeId, r);
+  const parts = [];
+  if (r.note) parts.push(esc(r.note));
+  parts.push(added ? `${added} added` : "all already shown");
+  side.insertAdjacentHTML("beforeend", `<div class="muted" style="margin-top:6px">${parts.join(". ")}</div>`);
+}
+function addNeighbors(card, centerId, r) {
+  const cy = card.cy;
+  let added = 0;
+  const hubSet = new Set((r.excluded_hubs || []).map(h => String(h.node_id)));
+  (r.neighbors || []).forEach(nb => {
+    const nid = String(nb.node_id);
+    if (!cy.getElementById(nid).length) { cy.add({ data: nodeData(nb, hubSet) }); added++; }
+    const soft = SOFT.has(nb.rel_type);
+    const eid = `n_${centerId}_${nid}_${nb.rel_type}`;
+    if (!cy.getElementById(eid).length) {
+      cy.add({ data: { id: eid, source: centerId, target: nid, rel: nb.rel_type, soft,
+        label: `${nb.rel_type || ""}${soft ? " (possible match)" : ""}`,
+        edgeColor: T.softEdge, softColor: T.softEdge, edgeLabelColor: T.textSecondary, bg: T.bgElevated } });
     }
   });
-  s += `<defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#8b949e"/></marker></defs>`;
-  nodes.forEach((n, i) => {
-    const x = X0 + i * DX, lab = (n.labels || [])[0] || "?", isHub = hubIds.has(n.node_id);
-    const col = COLORS[lab] || "#8b949e";
-    s += `<rect x="${x - 60}" y="50" width="120" height="60" rx="8" fill="#0d1117" stroke="${col}" stroke-width="${isHub ? 4 : 2}"/>`;
-    s += `<text x="${x}" y="72" fill="${col}" font-size="12" text-anchor="middle">${esc((n.name || n.node_id).slice(0, 20))}</text>`;
-    s += `<text x="${x}" y="88" fill="#8b949e" font-size="11" text-anchor="middle">${esc(lab)} · deg ${n.degree_core ?? "?"}</text>`;
-    if (isHub) s += `<text x="${x}" y="104" text-anchor="middle" class="hubtag">HUB</text>`;
+  card.rootId = card.rootId || centerId;
+  relayout(cy, card);
+  return added;
+}
+
+function touchedIds(card, step) {
+  const ids = new Set(), a = step.args || {};
+  for (const v of Object.values(a)) if (typeof v === "string" && card.cy.getElementById(v).length) ids.add(v);
+  if (step.tool === "search_entity_tool") {
+    const nm = norm(a.name);
+    card.cy.nodes().forEach(n => { if (norm(n.data("full")) === nm) ids.add(n.id()); });
+  }
+  if (step.tool === "strongest_connection_tool") card.pathOrder.forEach(id => ids.add(id));
+  return [...ids];
+}
+function highlight(card, ids) {
+  card.cy.elements().addClass("dim");
+  ids.forEach(id => { const el = card.cy.getElementById(id); el.removeClass("dim").addClass("flash"); });
+}
+function replay(card) {
+  if (!card.pathOrder.length) return;
+  if (reduced) { highlight(card, card.pathOrder); return; }
+  card.cy.elements().addClass("dim");
+  card.pathOrder.forEach((id, i) => setTimeout(() => {
+    const el = card.cy.getElementById(id);
+    if (el.length) { el.removeClass("dim").addClass("flash"); el.connectedEdges().removeClass("dim"); }
+  }, i * 420));
+}
+
+function scoreBlock(r) {
+  const b = r.score_breakdown || [];
+  if (!b.length) return "";
+  const total = (r.score === null || r.score === undefined) ? "n/a (no path)" : (+r.score).toFixed(2);
+  return `<div class="block"><div class="h">Connection relevance (higher = rarer, more informative link)</div>` +
+    `<div class="muted">Mean rarity over ${b.length} intermediate node${b.length === 1 ? "" : "s"}.</div>` +
+    `<table><tr><th>Node</th><th>Degree</th><th>Weight</th></tr>` +
+    b.map(d => `<tr><td>${esc(d.name || d.node_id)}</td><td class="num">${d.degree_core}</td><td class="num">${(+d.weight).toFixed(2)}</td></tr>`).join("") +
+    `<tr><td><b>Total</b></td><td></td><td class="num"><b>${total}</b></td></tr></table></div>`;
+}
+function hubsBlock(r) {
+  const h = r.excluded_hubs || [];
+  return `<div class="block"><div class="h">Excluded hubs</div>` +
+    (h.length ? h.map(x => `<div class="muted">${esc(x.name || x.node_id)} (degree ${x.degree_core})</div>`).join("")
+              : `<div class="muted">none</div>`) + `</div>`;
+}
+function traceBlock(r) {
+  const steps = (r.trace || []).map((t, i) =>
+    `<div class="step" data-step="${i}"><button>` +
+    `<span class="lbl">Step ${t.step}: ${esc(t.tool)}</span>` +
+    `<div class="muted">${esc(JSON.stringify(t.args))} → ${esc(JSON.stringify(t.result_summary))}</div></button>` +
+    (t.cypher ? `<pre><code>${esc(Array.isArray(t.cypher) ? t.cypher.join("\n---\n") : t.cypher)}</code></pre>` : "") +
+    `</div>`).join("");
+  return `<details><summary>How I got here (${(r.trace || []).length} steps)</summary>${steps}</details>`;
+}
+function legendHTML() {
+  const k = (c, l) => `<span class="key"><span class="dot" style="color:${c}"></span>${l}</span>`;
+  return `<div class="legend">` +
+    k(T.catEntity, "Entity") + k(T.catOfficer, "Officer") + k(T.catIntermediary, "Intermediary") +
+    k(T.catAddress, "Address") + k(T.catMerged, "Officer + Intermediary") +
+    `<span class="key"><span class="dot hubdot"></span>hub (high degree)</span>` +
+    `<span class="key"><span class="dash"></span>possible match (soft edge)</span></div>`;
+}
+
+function render(card, r, boxText) {
+  const el = card.el, body = el.querySelector(".body"), status = el.querySelector(".status");
+  const reallyCached = r.cached === true && norm(r.question) === norm(boxText);
+  status.textContent = (reallyCached ? "[cached] " : "") + (card.live ? "Live trace done." : "Done.");
+  const nodes = (r.evidence_path || {}).nodes || [];
+  body.innerHTML =
+    `<div class="answer">${esc(r.answer || JSON.stringify(r))}</div>` +
+    candidatesHTML(r.candidates) +
+    (nodes.length ? `<div class="block"><div class="h">Evidence path</div>
+      <div class="graphrow"><div class="graph"></div><div class="side"><div class="hint">Click a node for details and to expand its neighbours.</div></div></div>
+      ${legendHTML()}
+      <div class="muted" style="margin-top:6px"><button class="btn ghost replay">Replay path</button></div></div>` : "") +
+    scoreBlock(r) + hubsBlock(r) + traceBlock(r) +
+    `<div class="muted" style="margin-top:10px">${esc(r.limitations || "")}</div>`;
+
+  if (nodes.length) {
+    card.pathOrder = nodes.map(n => String(n.node_id));
+    card.rootId = card.pathOrder[0];
+    card.cy = buildGraph(body.querySelector(".graph"), pathElements(r), card);
+    body.querySelector(".replay").onclick = () => replay(card);
+    replay(card);
+  }
+  body.querySelectorAll(".step").forEach(s => s.querySelector("button").onclick = () => {
+    if (card.cy) highlight(card, touchedIds(card, r.trace[+s.dataset.step]));
   });
-  return s + "</svg>";
+  body.querySelectorAll(".candbtn").forEach(b => b.onclick = () => {
+    ask(false, { [b.dataset.for]: String(b.dataset.id) },
+        { name: b.dataset.name, label: b.dataset.label, country: b.dataset.country });
+  });
+  el.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
 }
-function traceHTML(trace) {
-  return (trace || []).map(t =>
-    `<details><summary>Step ${t.step}: ${esc(t.tool)} <code>${esc(JSON.stringify(t.args))}</code> → ${esc(JSON.stringify(t.result_summary))}</summary>` +
-    (t.cypher ? `<pre><code>${esc(Array.isArray(t.cypher) ? t.cypher.join("\n---\n") : t.cypher)}</code></pre>` : "<i>no Cypher recorded</i>") +
-    `</details>`).join("");
-}
-function usingHTML() {
-  if (!usingLine) return "";
-  return `<div class="card using"><b>Using:</b> ${esc(usingLine.name)} (${esc(usingLine.label)}, ${esc(usingLine.country)})</div>`;
-}
-// Ambiguity rows become clickable buttons. for_name is the text the user typed;
-// node_id is the exact record; clicking pins name -> node_id for the re-ask.
 function candidatesHTML(cands) {
   if (!cands || !cands.length) return "";
-  return `<div class="card"><b>Several records match — click the one you mean:</b><div class="cand">` +
+  return `<div class="block"><div class="h">Several records match — click the one you mean</div>` +
     cands.map(c => {
-      const lab = (c.labels || [])[0] || "?", cc = c.country_codes || "—";
+      const lab = labelName(c.labels), cc = c.country_codes || "—";
       return `<button class="candbtn" data-for="${esc(c.for_name)}" data-id="${esc(c.node_id)}" data-name="${esc(c.name)}" data-label="${esc(lab)}" data-country="${esc(cc)}">` +
-        `${esc(c.name)} — ${esc(lab)}, ${esc(cc)} <code>${esc(c.node_id)}</code></button>`;
-    }).join("") +
-    `</div></div>`;
+        `${esc(c.name)} (${esc(lab)}, ${esc(cc)}) <span class="id">${esc(c.node_id)}</span></button>`;
+    }).join("") + `</div>`;
 }
-function norm(s) { return String(s || "").toLowerCase().split(/\s+/).filter(Boolean).join(" "); }
-// Single source of truth: cur is the only live request. Any response whose
-// rid is not cur is stale and discarded, so overlapping requests can never
-// mix panels. The box text is written only by chip clicks, never by responses.
-// Pins: when a candidate is clicked we re-ask with {name: node_id}; the box
-// text is left untouched and a "Using:" line identifies the chosen record.
-let cur = 0, es = null, ctl = null, usingLine = null;
-async function ask(live, pins) {
-  const box = document.getElementById("q"), out = document.getElementById("out"), st = document.getElementById("status");
-  const q = box.value, rid = String(++cur);
+
+const EXAMPLES = [
+  ["Clean pair", "Two companies joined by one recorded address link.",
+   "What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?"],
+  ["Hub-blocked pair", "A route exists only through a very high-degree hub, so the hub is excluded and named.",
+   "What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?"],
+  ["Unknown name", "A name that is not in the data: shows the plain no-record wording.",
+   "What connects Zzxq Qqq Nonexistent to BRAVO ENTERPRISES LIMITED?"],
+  ["Ambiguous name", "Two different records share this name: click the one you mean.",
+   "What is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?"],
+  ["Ambiguous name (2)", "Two officers share this name: pick one to see the recorded path.",
+   "What is the strongest recorded connection between Lee, Chung-Han and BRAVO ENTERPRISES LIMITED?"]
+];
+(function buildChips() {
+  const wrap = document.getElementById("exchips");
+  EXAMPLES.forEach(([label, desc, q]) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = label; b.title = desc;
+    b.onclick = () => { document.getElementById("q").value = q; ask(false, null, null); };
+    wrap.appendChild(b);
+  });
+})();
+
+async function ask(live, pins, pinInfo) {
+  const box = document.getElementById("q");
+  const question = box.value.trim();
+  if (!question) return;
+  const card = { el: newCardEl(question, pinInfo), live, pathOrder: [], rootId: null,
+                 cy: null, rid: String(++autoId) };
+  CARDS.push(card);
+  document.getElementById("thread").appendChild(card.el);
+  card.el.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+  const status = card.el.querySelector(".status");
   const reqPins = (pins && Object.keys(pins).length) ? pins : null;
-  if (!reqPins) usingLine = null;
-  if (es) { es.close(); es = null; }
-  if (ctl) { ctl.abort(); ctl = null; }
-  out.innerHTML = ""; st.textContent = "Working…";
   if (!live) {
-    ctl = new AbortController();
     try {
-      const r = await (await fetch("/ask", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: q, rid, pins: reqPins}), signal: ctl.signal})).json();
-      if (rid === String(cur)) render(r, false, box.value);
-    } catch (e) { if (rid === String(cur)) st.textContent = "Request failed."; }
+      const r = await (await fetch("/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, rid: card.rid, pins: reqPins }) })).json();
+      if (r.detail) { status.textContent = "Request failed."; return; }
+      render(card, r, question);
+    } catch (e) { status.textContent = "Request failed."; }
   } else {
     const pp = reqPins ? "&pins=" + encodeURIComponent(JSON.stringify(reqPins)) : "";
-    es = new EventSource("/ask/stream?question=" + encodeURIComponent(q) + "&rid=" + encodeURIComponent(rid) + "&fresh=1" + pp);
+    const es = new EventSource(`/ask/stream?question=${encodeURIComponent(question)}&rid=${encodeURIComponent(card.rid)}&fresh=1${pp}`);
+    card.es = es;
     es.onmessage = e => {
       const m = JSON.parse(e.data);
-      if (m.rid !== String(cur)) return;
-      if (m.type === "step") st.textContent = `Step ${m.step.step}: ${m.step.tool}…`;
-      else { es.close(); es = null; render(m.result, true, box.value); }
+      if (m.type === "step") status.textContent = `Step ${m.step.step}: ${m.step.tool}…`;
+      else { es.close(); render(card, m.result, question); }
     };
-    es.onerror = () => { es.close(); es = null; if (rid === String(cur)) st.textContent = "Stream failed."; };
+    es.onerror = () => { es.close(); status.textContent = "Stream failed."; };
   }
 }
-function render(r, wasStream, boxText) {
-  // The cached badge shows only when the answer truly came from cache AND
-  // its stored question matches what is in the box right now.
-  const reallyCached = r.cached === true && norm(r.question) === norm(boxText);
-  const st = document.getElementById("status"), out = document.getElementById("out");
-  st.textContent = (reallyCached ? "[cached] " : "") + (wasStream ? "Live trace done." : "Done.");
-  const nodes = (r.evidence_path || {}).nodes || [], edges = (r.evidence_path || {}).edges || [];
-  out.innerHTML =
-    usingHTML() +
-    `<div class="card"><b>Answer${reallyCached ? " (cached)" : ""}</b>\n${esc(r.answer || JSON.stringify(r))}</div>` +
-    candidatesHTML(r.candidates) +
-    (nodes.length ? `<div class="card"><b>Evidence path</b>${graphSVG(nodes, edges, r.excluded_hubs)}</div>` : "") +
-    ((r.score_breakdown || []).length ? `<div class="card"><b>Connection relevance (higher = rarer, more informative link)</b>` +
-      `<div style="color:#8b949e;font-size:.85rem">Mean rarity over ${r.score_breakdown.length} intermediate node${r.score_breakdown.length === 1 ? "" : "s"}.</div>` +
-      `<table><tr><th>Node</th><th>Degree</th><th>Weight</th></tr>` +
-      r.score_breakdown.map(d => `<tr><td>${esc(d.name || d.node_id)}</td><td>${d.degree_core}</td><td>${(+d.weight).toFixed(2)}</td></tr>`).join("") +
-      `</table>Total: ${r.score === null || r.score === undefined ? "n/a (no path)" : (+r.score).toFixed(2)}</div>` : "") +
-    `<div class="card"><b>Excluded hubs</b>\n${(r.excluded_hubs || []).map(h => esc(`${h.name || h.node_id} (degree ${h.degree_core})`)).join("\n") || "none"}</div>` +
-    `<div class="card"><b>How I got here</b>${traceHTML(r.trace)}<div style="color:#8b949e">${esc(r.limitations || "")}</div></div>`;
-  out.querySelectorAll(".candbtn").forEach(b => b.onclick = () => {
-    usingLine = {name: b.dataset.name, label: b.dataset.label, country: b.dataset.country};
-    ask(false, {[b.dataset.for]: String(b.dataset.id)});
-  });
-}
-document.querySelectorAll(".ex").forEach(b => b.onclick = () => { document.getElementById("q").value = b.dataset.q; ask(false); });
-document.getElementById("askbtn").onclick = () => ask(true);
+document.getElementById("askbtn").onclick = () => ask(true, null, null);
+document.getElementById("q").addEventListener("keydown", e => { if (e.key === "Enter") ask(true, null, null); });
 </script>
 </body>
 </html>

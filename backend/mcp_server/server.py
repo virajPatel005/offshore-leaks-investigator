@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
+from backend.graph.neighbors import get_neighbors
 from backend.graph.search_entity import ensure_search_indexes, search_entity
 from backend.graph.shared_neighbors import shared_neighbors
 from backend.graph.strongest_connection import strongest_connection
@@ -98,6 +99,22 @@ def shared_neighbors_tool(
 ) -> dict:
     return _finish(_bounded(shared_neighbors, id_a=id_a, id_b=id_b,
                             hub_threshold=hub_threshold, limit=limit))
+
+
+@server.tool(description=(
+    "Immediate neighbours of one node_id (use search_entity first). Expands the "
+    "graph around a record: returns neighbour nodes with rel_type and link, hubs "
+    "excluded by the threshold and listed, and a truncation note. A node whose own "
+    "degree_core exceeds the threshold is a hub and is not expanded unless "
+    "allow_hub=true (override). Read-only."))
+def get_neighbors_tool(
+    node_id: Annotated[str, Field(description="node_id to expand (from search_entity or a path result)")],
+    hub_threshold: Annotated[int, Field(ge=1, le=100000, description="Neighbours above this degree_core are excluded (default 1000)")] = 1000,
+    limit: Annotated[int, Field(ge=1, le=100, description="Max neighbours to return (default 25)")] = 25,
+    allow_hub: Annotated[bool, Field(description="Expand even if the centre node is itself a hub (default false)")] = False,
+) -> dict:
+    return _finish(_bounded(get_neighbors, node_id=node_id, hub_threshold=hub_threshold,
+                            limit=limit, allow_hub=allow_hub))
 
 
 @server.resource("graph-schema://offshore",

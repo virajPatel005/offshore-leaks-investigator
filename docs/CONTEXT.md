@@ -1,8 +1,8 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 done (Agent + API + UI answer Q1 end to end; gate met from the UI path); Phase 3a (UI clarity + clickable disambiguation) done.
-- Last completed: Phase 3a — ambiguity result carries a structured `candidates` list; UI renders clickable candidate buttons; clicking pins name->node_id, re-asks (box text unchanged), shows "Using: name (label, country)"; cache key includes pins; onboarding panel + per-example line + colour/hub legend; score label "Connection relevance (higher = rarer, more informative link)"; fixed grounding to trust `path.nodes`.
+- Phase: 2 done; Phase 3a (UI clarity + clickable disambiguation) done; Phase 3b (Cytoscape graph + chat-thread UI + neighbour expansion) done.
+- Last completed: Phase 3b — Cytoscape.js 3.34.4 vendored in `web/vendor/` (D14); graph view replaced the SVG (label colours, log-size by degree_core, hub double-border, dashed soft edges "possible match", step-by-step path replay, click a trace step to highlight its nodes, node side card); new read-only tool `get_neighbors` (graph layer + MCP + `GET /neighbors`) with in-query hub filter and a hub-centre guard/override; chat thread keeps every card with its own graph; single dark token palette (contrast measured).
 - Next: re-grade the fixed items against TEST_QUESTIONS, then deployment/memory decision (Phase 3).
 
 ## How to run things
@@ -29,6 +29,7 @@
 - Ask API envelope: every response echoes rid + question; UI discards non-latest rids and aborts superseded fetches/streams; live always uses fresh=1 (bypass, still writes cache); cached badge only when echo matches box; scripts/check_ask.py asserts it.
 - Agent output carries top-level score (mean D3 rarity over intermediates; null = no path); grounding also covers degrees, question echo, link terms, country codes + name/code table, with name-token exemption.
 - Clickable disambiguation (D13): a search name with >1 exact match becomes a structured `candidates` row set (for_name, node_id, name, labels, country_codes, degree_core, sourceID); the API takes `pins` {name: node_id}, the agent feeds a pinned id straight to the path tools and hard-skips re-searching that name; unpinned cache key stays the plain question text (old cache valid), pinned runs get their own key. Grounding collects ids/names/degrees from `path.nodes` too (path endpoints are tool output).
+- Graph view (D14): Cytoscape.js 3.34.4 vendored at `web/vendor/cytoscape.min.js` (MIT, no CDN, offline); the UI is a chat thread where each question+answer is a card with its own Cytoscape instance (older cards keep their graphs); interactions are client-side, only `GET /neighbors` hits the backend. `get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False)` is the only new tool, read-only and registered as Q9; the hub predicate is on the neighbour, and a hub centre is not expanded unless `allow_hub`. Palette is one dark cool-slate token set shared by graph/cards/banner.
 
 ## Data quirks (running list)
 - 519k relationship rows have empty sourceID → slice by NODE sourceID, ignore relationship sourceID.
@@ -49,6 +50,8 @@
 - Docker Desktop can be fully down (no daemon): relaunch the per-user exe, then `docker compose up -d`; background servers need setsid to survive the shell (nohup alone died).
 - WSL `docker` CLI depends on Desktop's per-distro integration: if `wsl docker` fails but Windows `docker` works, re-enable Ubuntu integration (or restart Desktop); containers created while it was off can carry empty bind mounts → `--force-recreate` after fixing.
 - Keep outputs small: summaries only, never dump raw CSV rows (max 3 lines per file).
+- Multi-line `python - <<'EOF'` heredocs get mangled going PowerShell -> wsl (parentheses/quotes break); write the snippet to a file under the gitignored `runs/` and run it, then delete it.
+- Cytoscape style selectors need data-mapped colours to exist on every element (node and edge both carry `bg`/`edgeColor`/`softColor` etc.); breadthfirst needs `roots` set before `buildGraph` or it has no anchor.
 
 ## Open questions
 - Frontend choice (Phase 2); Track 2 memory in/out (Phase 3).

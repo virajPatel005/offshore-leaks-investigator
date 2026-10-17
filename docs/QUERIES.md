@@ -57,3 +57,10 @@ Every Cypher query or graph algorithm the product depends on. This feeds the REA
 - Parameters: $x, $y node_ids; $hub threshold (LIMIT inlined).
 - Query: `MATCH (a {node_id: $x}), (b {node_id: $y}) MATCH (a)-[r1]-(n)-[r2]-(b) WHERE n.degree_core <= $hub AND n.node_id <> $x AND n.node_id <> $y RETURN n.node_id, n.name, labels(n), n.degree_core, n.sourceID, type(r1), r1.link, r1.role_category, type(r2), r2.link, r2.role_category LIMIT 20`
 - Measured: instant on tested pairs.
+### Q9: expand one node's neighbours, hub-filtered (backend/graph/neighbors.py)
+- Used by tool: get_neighbors (MCP) and GET /neighbors (UI "Expand neighbours"). Purpose: expand the graph around one node_id; exclude high-degree neighbours (listed, not dropped); guard a hub centre.
+- Why this shape: the hub predicate sits on the neighbour inside `MATCH (a)-[r]-(n)`, so hubs are pruned during expansion and returned separately by a second query; the centre's own degree_core comes from an indexed lookup first, and if it exceeds the threshold the expansion is skipped unless allow_hub is set (override), because a ~37k-degree fan-out is uninformative. LIMIT caps size; a count query supplies the truncation note.
+- Parameters: $id node_id; $hub threshold (LIMIT inlined). Python kwarg allow_hub toggles the hub-centre guard.
+- Query: `MATCH (a {node_id: $id})-[r]-(n) WHERE n.degree_core <= $hub RETURN n.node_id, n.name, labels(n), n.country_codes, n.degree_core, n.sourceID, type(r), r.link, r.role_category LIMIT 25`
+- Centre check: `MATCH (a {node_id: $id}) RETURN a.node_id, a.name, labels(a), a.degree_core LIMIT 1`; count: `MATCH (a {node_id: $id})-[r]-(n) RETURN count(DISTINCT n)`; excluded: `... WHERE n.degree_core > $hub RETURN DISTINCT n.node_id, n.name, labels(n), n.degree_core LIMIT 25`
+- Measured: non-hub (Gary Pepper, deg 5) 54ms 5/5; hub (degree 37,338) 3.5ms guarded with note; hub override 62ms 25/37,338 shown, 4 high-degree neighbours excluded.
