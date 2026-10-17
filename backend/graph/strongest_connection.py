@@ -33,7 +33,7 @@ def candidate_query(depth, limit):
         pattern += f"-[{rel}]-{node}"
     where = (" WHERE " + " AND ".join(f"{m}.degree_core <= $hub" for m in mids)) if mids else ""
     nodes = "[x IN [a" + "".join(f", {m}" for m in mids) + ", b] | [x.node_id, x.name, labels(x), x.degree_core, x.sourceID]]"
-    edges = "[r IN [" + ", ".join(rels) + "] | [type(r), r.link, r.role_category]]"
+    edges = "[r IN [" + ", ".join(rels) + "] | [type(r), r.link, r.role_category, r.status, r.start_date, r.end_date, r.sourceID]]"
     return (f"MATCH (a {{node_id: $s}}), (b {{node_id: $t}}) MATCH {pattern}{where} "
             f"RETURN {nodes} AS nodes, {edges} AS edges LIMIT {limit}")
 REF_Q = """MATCH (x {node_id: $s}), (y {node_id: $t})
@@ -108,7 +108,9 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
             "path": {"length": len(edges),
                      "nodes": [{"node_id": r[0], "name": r[1], "labels": r[2],
                                 "degree_core": r[3], "sourceID": r[4]} for r in nodes],
-                     "edges": [{"rel_type": r[0], "link": r[1], "role_category": r[2]} for r in edges]},
+                     "edges": [{"rel_type": r[0], "link": r[1], "role_category": r[2],
+                                "status": r[3], "start_date": r[4], "end_date": r[5],
+                                "sourceID": r[6]} for r in edges]},
             "score": best_score, "breakdown": best_down, "excluded_hubs": excluded,
             "reference_length": ref_len, "cypher": cypher,
             "note": "; ".join(n for n in (timeout_note, ref_note) if n) or None}

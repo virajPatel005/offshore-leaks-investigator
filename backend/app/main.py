@@ -12,6 +12,7 @@ import sys
 import time
 from collections import deque
 from datetime import date
+from typing import Literal
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -39,6 +40,12 @@ class AskBody(BaseModel):
     question: str
     rid: str | None = None
     pins: dict[str, str] | None = None
+
+
+class ConnectBody(BaseModel):
+    a: str
+    b: str
+    mode: Literal["strongest", "shared"]
 
 
 def norm(q):
@@ -160,6 +167,26 @@ def neighbors(node_id: str, hub_threshold: int = 1000, limit: int = 25, allow_hu
         return get_neighbors(node_id, hub_threshold=hub_threshold, limit=limit, allow_hub=allow_hub)
     except Exception:
         raise HTTPException(502, "neighbor expansion failed")
+
+
+@app.post("/connect")
+def connect(body: ConnectBody):
+    """Two nodes picked in the UI graph -> Q6/Q8 card. Deterministic, no LLM."""
+    from backend.agent.actions import shared_action, strongest_action
+
+    a, b = body.a.strip(), body.b.strip()
+    if not a or not b:
+        raise HTTPException(400, "both node ids required")
+    if a == b:
+        raise HTTPException(400, "pick two different nodes")
+    fn = strongest_action if body.mode == "strongest" else shared_action
+    try:
+        res = fn(a, b)
+    except Exception:
+        raise HTTPException(502, "graph action failed")
+    if res.get("error"):
+        raise HTTPException(404, res["error"])
+    return res
 
 
 @app.post("/ask")

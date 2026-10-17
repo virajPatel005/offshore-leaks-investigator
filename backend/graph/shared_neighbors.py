@@ -18,7 +18,8 @@ QUERY_TIMEOUT_MS = 15000
 Q = """MATCH (a {node_id: $x}), (b {node_id: $y})
 MATCH (a)-[r1]-(n)-[r2]-(b) WHERE n.degree_core <= $hub AND n.node_id <> $x AND n.node_id <> $y
 RETURN n.node_id, n.name, labels(n), n.degree_core, n.sourceID,
-type(r1), r1.link, r1.role_category, type(r2), r2.link, r2.role_category LIMIT %d"""
+type(r1), r1.link, r1.role_category, r1.status, r1.start_date, r1.end_date, r1.sourceID,
+type(r2), r2.link, r2.role_category, r2.status, r2.start_date, r2.end_date, r2.sourceID LIMIT %d"""
 HUB_Q = """MATCH (a {node_id: $x}), (b {node_id: $y})
 MATCH (a)-[r1]-(n)-[r2]-(b) WHERE n.degree_core > $hub
 RETURN DISTINCT n.node_id, n.name, labels(n), n.degree_core LIMIT %d"""
@@ -41,9 +42,11 @@ def shared_neighbors(id_a, id_b, hub_threshold=1000, limit=20):
         deg = r[3] or 0
         neighbors.append({"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": deg,
                           "sourceID": r[4], "weight": math.log((n_total + 1) / (deg + 1)),
-                          "via": [{"side": "a", "rel_type": r[5], "link": r[6], "role_category": r[7]},
-                                  {"side": "b", "rel_type": r[8], "link": r[9], "role_category": r[10]}]})
-        grouped[f"{r[5]}+{r[8]}"] = grouped.get(f"{r[5]}+{r[8]}", 0) + 1
+                          "via": [{"side": "a", "rel_type": r[5], "link": r[6], "role_category": r[7],
+                                   "status": r[8], "start_date": r[9], "end_date": r[10], "sourceID": r[11]},
+                                  {"side": "b", "rel_type": r[12], "link": r[13], "role_category": r[14],
+                                   "status": r[15], "start_date": r[16], "end_date": r[17], "sourceID": r[18]}]})
+        grouped[f"{r[5]}+{r[12]}"] = grouped.get(f"{r[5]}+{r[12]}", 0) + 1
     neighbors.sort(key=lambda n: -n["weight"])
     hub_rows = g.query(HUB_Q % limit, {"x": id_a, "y": id_b, "hub": hub_threshold},
                        timeout=QUERY_TIMEOUT_MS).result_set

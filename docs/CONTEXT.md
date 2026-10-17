@@ -1,9 +1,15 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 done; Phase 3a (UI clarity + clickable disambiguation) done; Phase 3b (Cytoscape graph + chat-thread UI + neighbour expansion) done.
-- Last completed: Phase 3b — Cytoscape.js 3.34.4 vendored in `web/vendor/` (D14); graph view replaced the SVG (label colours, log-size by degree_core, hub double-border, dashed soft edges "possible match", step-by-step path replay, click a trace step to highlight its nodes, node side card); new read-only tool `get_neighbors` (graph layer + MCP + `GET /neighbors`) with in-query hub filter and a hub-centre guard/override; chat thread keeps every card with its own graph; single dark token palette (contrast measured).
-- Next: re-grade the fixed items against TEST_QUESTIONS, then deployment/memory decision (Phase 3).
+- Phase: 2 done; Phase 3a done; Phase 3b done; Phase 3c (UI fixes) done.
+- Last completed: Phase 3c —
+  - Colour bug root-caused from the node data (GALAXY ASIA → Tricor → ENFARI): each node has exactly ONE label, so the "second colour" was the replay step highlight's border ring (accent, 6px) and "no colour" was the old 0.18 node dim while the replay had not reached ENFARI. Fix: neutral `--ring` highlight named in the legend, dimming applies to edges only (0.25), node fills are never dimmed; unknown/missing labels get a dashed grey `cat-unknown` style + `console.warn` (never a silent default).
+  - Graph controls: 380px panel, Fit, Full screen (Esc exits; resize+refit on `fullscreenchange`), Download PNG = `cy.png({full:true, scale:2, bg})` (2x, theme background, data URI from the renderer default), wheelSensitivity 0.15.
+  - Edges: labels are chips (text-primary on surface, full opacity); an edge click opens a side card with rel_type, raw link, role_category, status, start, end, sourceID and a "possible match" chip for soft types. A node click selects it (max 2, neutral ring) and highlights its edges while other edges dim; an empty-canvas tap resets.
+  - Themes: dark + light token blocks; switching is `data-theme` on `<html>` (localStorage `oi-theme`, applied by an inline pre-paint script) with `@media (prefers-color-scheme: light)` as the unset fallback; Cytoscape data colours + stylesheet are rebuilt on change; contrast measured in both modes (D15).
+  - Two-node actions: select two nodes → "Strongest connection" / "What do these share?" → `POST /connect` (no LLM) → new card in the thread; `backend/agent/actions.py` wraps Q6/Q8 in the agent envelope and shared-star edges carry explicit `source_id`/`target_id`.
+  - Graph tools now also return status/start_date/end_date/relationship sourceID (Q6/Q8/Q9 updated; `neighbors.py` keys it `rel_sourceID`). Answers cached before this change show "—" for those fields.
+- Next: browser checks by Viraj (PNG file, full screen/Esc, both themes rendered, edge card, two-node buttons), then re-grade TEST_QUESTIONS, then deployment/memory decision (Phase 3).
 
 ## How to run things
 - venv: `.venv` (system Python 3.12: `/usr/bin/python3.12 -m venv .venv`); `.venv/bin/pip install -r requirements.txt` (falkordb, python-dotenv).
@@ -30,6 +36,7 @@
 - Agent output carries top-level score (mean D3 rarity over intermediates; null = no path); grounding also covers degrees, question echo, link terms, country codes + name/code table, with name-token exemption.
 - Clickable disambiguation (D13): a search name with >1 exact match becomes a structured `candidates` row set (for_name, node_id, name, labels, country_codes, degree_core, sourceID); the API takes `pins` {name: node_id}, the agent feeds a pinned id straight to the path tools and hard-skips re-searching that name; unpinned cache key stays the plain question text (old cache valid), pinned runs get their own key. Grounding collects ids/names/degrees from `path.nodes` too (path endpoints are tool output).
 - Graph view (D14): Cytoscape.js 3.34.4 vendored at `web/vendor/cytoscape.min.js` (MIT, no CDN, offline); the UI is a chat thread where each question+answer is a card with its own Cytoscape instance (older cards keep their graphs); interactions are client-side, only `GET /neighbors` hits the backend. `get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False)` is the only new tool, read-only and registered as Q9; the hub predicate is on the neighbour, and a hub centre is not expanded unless `allow_hub`. Palette is one dark cool-slate token set shared by graph/cards/banner.
+- Theme + highlight + edge fields (D15): one switching mechanism (`data-theme` on `<html>` + `@media (prefers-color-scheme: light)` fallback, stored in localStorage `oi-theme`), light palette contrast-measured, neutral highlight ring (a coloured ring caused the two-colour bug), dim applies to edges only, unknown labels visible + logged; graph tools return status/dates/relationship sourceID; `POST /connect` = deterministic two-node actions reusing Q6/Q8.
 
 ## Data quirks (running list)
 - 519k relationship rows have empty sourceID → slice by NODE sourceID, ignore relationship sourceID.
@@ -52,6 +59,10 @@
 - Keep outputs small: summaries only, never dump raw CSV rows (max 3 lines per file).
 - Multi-line `python - <<'EOF'` heredocs get mangled going PowerShell -> wsl (parentheses/quotes break); write the snippet to a file under the gitignored `runs/` and run it, then delete it.
 - Cytoscape style selectors need data-mapped colours to exist on every element (node and edge both carry `bg`/`edgeColor`/`softColor` etc.); breadthfirst needs `roots` set before `buildGraph` or it has no anchor.
+- Cytoscape node/edge colours live in element DATA, so a theme change must rewrite each element's data before re-applying the stylesheet (`cy.style().fromJson(graphStyle()).update()`) — swapping CSS alone changes nothing on the canvas.
+- `cy.png()` in the vendored 3.34.4 has no `output:"base64uri"` case: unknown output values fall through to the default, which returns the full data URI (what `<a download>` needs); `output:"base64"` returns raw base64 without the prefix.
+- `get_neighbors` returns the RELATIONSHIP sourceID as `rel_sourceID` (its `sourceID` key is the neighbour NODE's own source); the UI maps `rel_sourceID || sourceID` so an expansion edge card shows the right record source.
+- The UI action buttons must be reached through the node-select model (tap node → tap second node → bar appears); `updateActions` is the only place the bar is filled, and an empty-canvas tap resets selection + highlight.
 
 ## Open questions
 - Frontend choice (Phase 2); Track 2 memory in/out (Phase 3).
