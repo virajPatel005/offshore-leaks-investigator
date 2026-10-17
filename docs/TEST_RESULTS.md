@@ -244,4 +244,48 @@ Note: I treat that phrase purely as a name to search for — it's a prompt-injec
 
 
 ## Same issue of question changing from the question bar 
+ 
+---
+## Re-grade after the fixes (agent, 2026-10-17 ~20:40 IST)
+
+Method: the 12 cached questions were re-sent through the real API path (`POST /ask`,
+0 LLM) and graded against the expected outcomes; every cached response also had to
+echo rid + question (the old "question bar changes / wrong answer shown" bug class).
+Uncached names/questions were graded by calling the graph tools directly (0 LLM).
+T5Q3 was refreshed with one live run (2 LLM calls) because its cached answer had
+become factually stale.
+
+Verdicts (20 items; ★ = demo):
+- T1Q1 PASS — single hit 170362 (Entity), answer served.
+- T1Q2 PASS (tool) — "MIRALEY LTD." = 1 hit, 108197. Agent run pending (non-★).
+- T1Q3 PASS (tool) — 1 hop, officer_of, 108197–5086. Agent run pending.
+- T1Q4 PASS — 1 edge intermediary_of, MIRALEY → Cliff Legal Services.
+- T2Q1 ★ PASS — 3 hops via Tricor, score 9.35, endpoints 123345/170362.
+- T2Q2 ★ PASS — Tsai, Eng-Meng + address 234955, groups officer / registered address.
+- T2Q3 PASS — 2 hops officer_of, trusts 172841–172843 via Tsai.
+- T2Q4 PASS (tool) — M.Y.Y. shares 51221 + 234955 with 172843. NOTE: "The M.Y.Y.
+  Trust" is NOT unique (3 hits: 172839/172840/172841) — the doc's "verify at
+  runtime" note resolved to "agent must ask to pick" (Tier 4 behavior).
+- T3Q1 PASS — names hub 54662 / degree 36,254, "no hub-respecting path within 4 hops".
+- T3Q2 ★ PASS — no hub path ≤4 hops, excluded address hub 236724 / degree 37,338;
+  shared_neighbors = 0 with no excluded hubs. ("Slow on first try" was the known
+  Groq 429 retry behavior, not re-run under this scope.)
+- T3Q3 PASS (tool) — address text yields 0 name hits, as documented.
+- T3Q4 PASS (tool) — both names resolve (Mitchell 118387, Blue Bottle 125432);
+  uniqueness still unverified → an "ask to pick" answer also passes.
+- T4Q1 ★ PASS — 2 candidates (298260 Intermediary, 108040 Entity) offered to pick.
+- T4Q2 PASS — 2 candidates (106275 XXX, 110150 TWN) offered to pick.
+- T4Q3 PARTIAL (tool) — search now returns 7 hits (doc said 8); 54662 carries both
+  Intermediary + Officer labels. Agent "ask to pick" run pending.
+- T4Q4 PASS (tool) — core tool returns the length-1 "similar" edge 290583–290763;
+  "possible match" wording still needs one live run to grade.
+- T5Q1 PASS — zero matches, no invented path.
+- T5Q2 PASS — same cached answer as T3Q2, both names unique.
+- T5Q3 ★ PASS after refresh — resolves exactly to 51221 (Officer, CHN), refuses to
+  characterize, states no wrongdoing. The old cached answer ("no exact match,
+  possible match Eng-Rung") was stale after the search-variant fix and was replaced.
+- T5Q4 PASS — treats the quoted text as data, no-record stop.
+
+Still pending (by design, needs Viraj): browser click-through of chips vs question
+box (old bug class), and agent-answer runs for the 7 uncached non-★ questions.
 

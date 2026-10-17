@@ -1,8 +1,14 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 done; Phase 3a done; Phase 3b done; Phase 3c (UI fixes) done; Phase 3d (zoom control) done in code, pending Viraj's browser pass.
-- Last completed: Phase 3d (zoom control) —
+- Phase: 2 done; Phase 3a done; Phase 3b done; Phase 3c (UI fixes) done; Phase 3d (zoom control) done, browser-confirmed by Viraj; TEST_QUESTIONS re-graded.
+- Last completed: TEST_QUESTIONS re-grade (docs/TEST_RESULTS.md "Re-grade" section) —
+  - 12 cached questions re-sent through `POST /ask`: all PASS with rid + question echo (covers the old "question bar changes / wrong answer" bug class at the API level) and outcome checks; 0 LLM.
+  - 11 tool-level checks for the uncached items: all PASS (MIRALEY 1 hit; Gridnev 1-hop officer_of; M.Y.Y. shares 51221+234955; address question 0 hits; Mitchell/Blue Bottle resolve; 54662 has both labels; Eton pair + similar edge).
+  - Doc drift found: "The M.Y.Y. Trust" is NOT unique (3 hits → agent must ask to pick); Portcullis name search now returns 7 hits (doc said 8).
+  - T5Q3's cached answer was factually stale after the 2e search fix ("no exact match" while 51221 resolves exactly) → one fresh run (2 groq calls) replaced it; the new answer resolves 51221 and refuses to characterize (neutral).
+  - Still pending: browser click-through of chips vs question box (Viraj), agent-answer runs for the 7 uncached non-★ questions (deferred by Viraj's choice).
+- Previously: Phase 3d (zoom control) —
   - Every graph panel now has a zoom bar under the canvas (inside `.graphwrap`, so it is present in full screen too): `−` / logarithmic slider / `+` / live `%` readout / `100%` reset button; "Fit" stays in the top `.graphbar`.
   - Zoom model: `100%` = the zoom of the last AUTOMATIC fit (initial layout, relayout after expansion, full-screen refit — `markBase`). The explicit "Fit" button deliberately does NOT re-baseline, so Fit and 100% stay distinct tools.
   - Slider is log-spaced (`sliderToZoom`/`zoomToSlider`, SLIDER_STEPS 1000 over MIN_ZOOM 0.02 – MAX_ZOOM 10); wheel/pinch/Fit/`+`/`−` all flow through the cy `"zoom"` event so slider and readout track the canvas both ways. The slider write is skipped only while the pointer is dragging it (`card.sliderDrag`), so a wheel still moves it when the slider holds focus. Zoom is applied around the viewport centre via `renderedPosition`.
@@ -16,7 +22,7 @@
   - Themes: dark + light token blocks; switching is `data-theme` on `<html>` (localStorage `oi-theme`, applied by an inline pre-paint script) with `@media (prefers-color-scheme: light)` as the unset fallback; Cytoscape data colours + stylesheet are rebuilt on change; contrast measured in both modes (D15).
   - Two-node actions: select two nodes → "Strongest connection" / "What do these share?" → `POST /connect` (no LLM) → new card in the thread; `backend/agent/actions.py` wraps Q6/Q8 in the agent envelope and shared-star edges carry explicit `source_id`/`target_id`.
   - Graph tools now also return status/start_date/end_date/relationship sourceID (Q6/Q8/Q9 updated; `neighbors.py` keys it `rel_sourceID`). Answers cached before this change show "—" for those fields.
-- Next: browser checks by Viraj (Phase 3d zoom bar: slider↔wheel sync, full-screen layout, both themes; plus the 3c leftovers), then re-grade TEST_QUESTIONS, then deployment/memory decision (Phase 3).
+- Next: browser click-through of chips vs question box, then the Phase 3 remaining items (deploy attempt, Track 2 memory decision, D12 multi-client MCP check 30 min).
 
 ## How to run things
 - venv: `.venv` (system Python 3.12: `/usr/bin/python3.12 -m venv .venv`); `.venv/bin/pip install -r requirements.txt` (falkordb, python-dotenv).
@@ -71,6 +77,7 @@
 - `get_neighbors` returns the RELATIONSHIP sourceID as `rel_sourceID` (its `sourceID` key is the neighbour NODE's own source); the UI maps `rel_sourceID || sourceID` so an expansion edge card shows the right record source.
 - The UI action buttons must be reached through the node-select model (tap node → tap second node → bar appears); `updateActions` is the only place the bar is filled, and an empty-canvas tap resets selection + highlight.
 - Zoom baseline: `card.baseZoom` is captured ONLY in `markBase` (cy `layoutstop`, the 60ms full-screen refit) and "100%" resets to it, so any future code path that relayouts/resizes a card without a `layoutstop` or a `markBase` call will leave 100% pointing at a stale zoom. The explicit Fit button intentionally does not re-baseline.
+- Cached answers can go stale when a TOOL changes: the T5Q3 cache said "no exact match" after the 2e search-variant fix let "Tsai, Eng-Meng" resolve exactly. After any tool/search change, re-run the ★ demo questions fresh (the cache is overwritten on a fresh run) and re-grade their cached text.
 
 ## Open questions
 - Frontend choice (Phase 2); Track 2 memory in/out (Phase 3).
