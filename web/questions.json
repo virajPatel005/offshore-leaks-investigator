@@ -1,0 +1,314 @@
+{
+ "generated_by": "scripts/build_questions.py",
+ "generated_from": [
+  "docs/COMPLEX_QUESTIONS.md",
+  "docs/TEST_QUESTIONS.md"
+ ],
+ "categories": [
+  "Deep path",
+  "Hub changes the answer",
+  "Multi-step",
+  "Ambiguity",
+  "Possible match",
+  "Panama and cross-dataset"
+ ],
+ "entries": [
+  {
+   "id": "D1",
+   "text": "What is the strongest recorded connection between GALAXY ASIA LIMITED. and PERFECT INVESTMENTS COMPANY LIMITED.?",
+   "graph": "offshore",
+   "category": "Deep path",
+   "why": "a clean 5-node chain, all non-hub, all companies/people; renders well.",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "H1",
+   "text": "What is the strongest recorded connection between Braggle Ltd. and ASIAN DRAGON (BVI) LIMITED?",
+   "graph": "offshore",
+   "category": "Hub changes the answer",
+   "why": "classic \"the filter changes the answer\"; pair already documented as T3Q2.",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "H2",
+   "text": "What is the strongest recorded connection between MAGN DEVELOPMENT LIMITED and MASS FAITH GROUP LTD.?",
+   "graph": "icij",
+   "category": "Hub changes the answer",
+   "why": "named hub on the union graph; the same pair never appears without the hub.",
+   "tools": "search, search, strongest_connection.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "T3Q1",
+   "text": "What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?",
+   "graph": "offshore",
+   "category": "Hub changes the answer",
+   "why": "hub-only reachability with a named hub.",
+   "tools": "search, search, strongest_connection (+ follow-ups the agent chooses).",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "T3Q2",
+   "text": "What is the strongest recorded connection between Braggle Ltd. and ASIAN DRAGON (BVI) LIMITED?",
+   "graph": "offshore",
+   "category": "Hub changes the answer",
+   "why": "demo question 3 reference case.",
+   "tools": "search, search, strongest_connection.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "M1",
+   "text": "Who shares a registered address with TO.CE.CO LIMITED., and how is that company connected to GALAXY ASIA LIMITED.?",
+   "graph": "offshore",
+   "category": "Multi-step",
+   "why": "forces search + expansion + path in sequence and produces a 3-node final graph; the address pivot is explainable (non-hub, degree 5).",
+   "tools": "search(\"TO.CE.CO LIMITED.\") \u2192 get_neighbors(170362) \u2192 get_neighbors(234218) [the address] \u2192 search(\"Li Meng Chemical Limited\") \u2192 strongest_connection(170206, 123345).",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "T2Q1",
+   "text": "What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?",
+   "graph": "offshore",
+   "category": "Multi-step",
+   "why": "demo question 1 reference case.",
+   "tools": "search, search, strongest_connection.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "T2Q2",
+   "text": "What do The M.Y.H. Trust and The Victoria & Daniel Trust share?",
+   "graph": "offshore",
+   "category": "Multi-step",
+   "why": "demo question 2 reference case (shared officer AND non-hub address).",
+   "tools": "search, search, shared_neighbors.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "T2Q3",
+   "text": "What is the strongest recorded connection between The M.Y.H. Trust and The Victoria & Daniel Trust?",
+   "graph": "offshore",
+   "category": "Multi-step",
+   "why": "same pair as T2Q2, path view instead of neighbor view.",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "T2Q4",
+   "text": "What do The M.Y.Y. Trust and The Victoria & Daniel Trust share?",
+   "graph": "offshore",
+   "category": "Multi-step",
+   "why": "checks the pattern generalizes to a third trust in the cluster.",
+   "tools": "search, search, shared_neighbors.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "T3Q4",
+   "text": "What connects the officer Barry Neil Mitchell to BLUE BOTTLE HOLDINGS LIMITED?",
+   "graph": "offshore",
+   "category": "Multi-step",
+   "why": "officer-to-company link with possible name ambiguity.",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "A1",
+   "text": "Find Gary Pepper. Then: what is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?",
+   "graph": "offshore",
+   "category": "Ambiguity",
+   "why": "the follow-up turns a disambiguation into two genuinely different answers.",
+   "tools": "search (returns 2 candidates: Intermediary 298260, USA, degree 5; Entity 108040, USA;XXX, degree 2), then strongest_connection.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "A2",
+   "text": "How is CALYPSO STAR LTD. connected to UNIHOUSE NOMINEES LIMITED?",
+   "graph": "icij",
+   "category": "Ambiguity",
+   "why": "on the union graph the same name lives on six different officer nodes.",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "T4Q1",
+   "text": "What is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?",
+   "graph": "offshore",
+   "category": "Ambiguity",
+   "why": "same name, different labels.",
+   "tools": "search (2+ hits), then ask.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "T4Q2",
+   "text": "What is the strongest recorded connection between Lee, Chung-Han and BRAVO ENTERPRISES LIMITED?",
+   "graph": "offshore",
+   "category": "Ambiguity",
+   "why": "same name, different jurisdictions.",
+   "tools": "search (2 hits), then ask.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "T4Q3",
+   "text": "What labels does Portcullis TrustNet (BVI) Limited carry?",
+   "graph": "offshore",
+   "category": "Ambiguity",
+   "why": "merged Officer+Intermediary identity in the wild.",
+   "tools": "search (7 hits), then ask.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "S1",
+   "text": "Is \"Eton Consultants Group Ltd\" the same company as \"Eton Consultants Group Limited\"?",
+   "graph": "offshore",
+   "category": "Possible match",
+   "why": "the canonical soft-edge demo; one dashed edge on screen says it all.",
+   "tools": "search, search, strongest_connection(290583, 290763).",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "S2",
+   "text": "What links Eton Consultants Group Ltd (node 290583) to its neighbours?",
+   "graph": "offshore",
+   "category": "Possible match",
+   "why": "soft flags on a NEIGHBOUR SET (not a path) \u2014 same safeguard, different tool.",
+   "tools": "get_neighbors(290583).",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "T4Q4",
+   "text": "What is the strongest recorded connection between Eton Consultants Group Ltd and Eton Consultants Group Limited?",
+   "graph": "offshore",
+   "category": "Possible match",
+   "why": "soft-edge handling under the neutral-language rule.",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "P1",
+   "text": "Are \"PEARL OCEAN HOLDING LIMITED\" on the Panama Papers and on Offshore Leaks the same company?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "shows the union graph's only cross-dataset link type in one hop.",
+   "tools": "search, search, strongest_connection(10001004, 148317).",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "P1",
+   "text": "What is the strongest recorded connection between JDC HOLDINGS S.A. and INTERTRADE SYSTEMS LTD?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "P2",
+   "text": "What is the strongest recorded connection between ERNHARD COMPANY LTD. and CALYPSO STAR LTD.?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "",
+   "tools": "search, search, strongest_connection.",
+   "status": "tool-verified only",
+   "video_pick": false,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "P3",
+   "text": "Are \"MATCHBOX INTERNATIONAL LTD\" on the Panama Papers and on Offshore Leaks the same company?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "the complete union-graph disambiguation story (stop \u2192 pick \u2192 pinned answer) in one question; both steps cached for the demo.",
+   "tools": "unpinned run \u2014 search, then the model stops and lists candidates; pinned run (both records pinned) \u2014 strongest_connection(10001803, 173959) + shared_neighbors.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "P3",
+   "text": "What is the strongest recorded connection between MAGN DEVELOPMENT LIMITED and MASS FAITH GROUP LTD.?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "hub filter changes the answer on the union exactly like T3Q2 does on offshore.",
+   "tools": "search, search, strongest_connection.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "P4",
+   "text": "Are \"GLOBAL CAR KING CO., LTD.\" on the Panama Papers and on Offshore Leaks the same company?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "short, memorable name; same one-hop cross-dataset value as P3 without the pick interaction.",
+   "tools": "search, search, strongest_connection(10090838, 131396).",
+   "status": "agent-verified",
+   "video_pick": false,
+   "source": "COMPLEX_QUESTIONS.md"
+  },
+  {
+   "id": "P4",
+   "text": "Are \"PEARL OCEAN HOLDING LIMITED\" on the Panama Papers and on Offshore Leaks the same company?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "the deliberate cross-dataset soft-edge demo (same_as is the only cross-dataset link type).",
+   "tools": "search, search, strongest_connection.",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "TEST_QUESTIONS.md"
+  },
+  {
+   "id": "P5",
+   "text": "What is the strongest recorded connection between GALAXY NIGHT WORLDWIDE INC. and ELFERS UNITED INC.?",
+   "graph": "icij",
+   "category": "Panama and cross-dataset",
+   "why": "a clean Panama-side core-only officer chain with multiple ranked alternatives \u2014 the union graph is not only cross-dataset soft edges.",
+   "tools": "search, search, strongest_connection(10155837, 10172348).",
+   "status": "agent-verified",
+   "video_pick": true,
+   "source": "COMPLEX_QUESTIONS.md"
+  }
+ ]
+}

@@ -203,13 +203,82 @@
   .inputrow { display: flex; gap: 8px; }
   #q { flex: 1; background: var(--bg-surface); color: var(--text-primary);
     border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 11px 12px; font-size: 1rem; }
-  @media (max-width: 660px) { .graphrow { flex-direction: column; } .side { width: auto; } }
+  @media (max-width: 660px) { .graphrow { flex-direction: column; } .side { width: auto; }
+    #helpbtn { top: 6px; left: 6px; } #banner { padding-left: 58px; } }
   @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+  /* Help sidebar (native <dialog>, focus-trapped) + question sets + star */
+  #banner { padding-left: 64px; }
+  #helpbtn { position: fixed; top: 10px; left: 10px; z-index: 45; width: 44px; height: 44px;
+    padding: 0; font-size: 1.15rem; font-weight: 700; border-radius: 50%; }
+  #helpside { position: fixed; inset: 0 auto 0 0; margin: 0; width: min(392px, 94vw); height: 100%;
+    max-height: 100%; border: 0; border-right: 1px solid var(--border-strong); padding: 0;
+    background: var(--bg-surface); color: var(--text-primary); }
+  #helpside::backdrop { background: rgba(0, 0, 0, 0.45); }
+  .helphd { position: sticky; top: 0; display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--bg-surface); }
+  .helphd h2 { font-size: 1.02rem; margin: 0; flex: 1; }
+  .helppanel { padding: 10px 16px 28px; overflow-y: auto; height: calc(100% - 55px); }
+  .helppanel > p { margin: 6px 0; font-size: .88rem; color: var(--text-secondary); }
+  .helppanel h3 { font-size: .95rem; margin: 16px 0 6px; }
+  .hq { background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 8px 10px; font-family: var(--mono); font-size: .82rem; margin: 6px 0; word-break: break-word; }
+  .hex { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin: 10px 0; }
+  .hex .hxlabel { display: flex; align-items: center; gap: 6px; font-weight: 650; font-size: .9rem; }
+  .graphbadge { display: inline-block; border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 3px 10px; font-size: .8rem; color: var(--text-secondary); }
+  #qsets { margin-top: 10px; }
+  #qsets summary { font-size: .9rem; }
+  .qsgroup { margin: 10px 0 4px; }
+  .qsgroup .gname { font-weight: 650; font-size: .86rem; margin-bottom: 2px; }
+  .qsrow { margin: 7px 0; }
+  .qsrow .qbtn { width: 100%; text-align: left; background: var(--bg-elevated);
+    border: 1px solid var(--border-strong); color: var(--text-primary);
+    border-radius: var(--radius-sm); padding: 7px 10px; font-size: .85rem; }
+  .qsrow .qbtn:hover { border-color: var(--accent); }
+  .qsrow .qbtn[disabled] { opacity: .55; cursor: not-allowed; }
+  .qsrow .qbtn[disabled]:hover { border-color: var(--border-strong); }
+  .qmeta { font-size: .76rem; color: var(--text-muted); margin-top: 3px; }
+  .qmeta .st { border: 1px dashed var(--border-strong); border-radius: 999px; padding: 0 7px; margin-left: 6px; }
+  .pick { color: var(--warn-text); }
+  .snote { margin-top: 6px; }
 </style>
 </head>
 <body>
 <a class="skip" href="#thread">Skip to results</a>
 <div id="banner">Appearing in the ICIJ Offshore Leaks database does not imply wrongdoing.</div>
+<button id="helpbtn" class="btn" title="Help and examples" aria-label="Help and examples"
+        aria-haspopup="dialog" aria-controls="helpside">?</button>
+<dialog id="helpside" aria-label="Help and examples">
+  <div class="helphd"><h2>Help &amp; examples</h2>
+    <button id="helpclose" class="btn ghost" aria-label="Close help">Close</button></div>
+  <div class="helppanel">
+    <p><strong>Offshore Investigator</strong> answers connection questions about the public ICIJ
+      Offshore Leaks records. It follows recorded links (officer, intermediary, registered address)
+      in a FalkorDB graph and shows the path behind every answer.</p>
+    <p><span id="helpbadge" class="graphbadge">Graph: checking…</span></p>
+    <div id="helpexamples"></div>
+    <h3>How to read an answer</h3>
+    <p><strong>Score</strong> — the mean rarity of the intermediate nodes on the path; a rarer
+      stepping-stone scores higher. A direct link shows “not applicable: direct link, no
+      intermediate nodes”.</p>
+    <p><strong>Hub marker (double ring)</strong> — a node with more than 1,000 recorded neighbours.
+      High degree makes a link less informative, not fake: hubs are excluded from ranked paths and
+      named in the “excluded hubs” box when that changes the answer.</p>
+    <p><strong>Dashed edge “(possible match)”</strong> — a soft link (similar, same_as …): the
+      records are linked in the data, but the identity is NOT confirmed.</p>
+    <h3>Question sets</h3>
+    <p>Two public datasets are loaded together on the <em>icij</em> graph: Offshore Leaks and the
+      Panama Papers. Cross-dataset questions follow “possible match” links between the two.</p>
+    <div id="helpsets"></div>
+    <h3>Data</h3>
+    <p><a href="https://offshoreleaks.icij.org/pages/database" target="_blank" rel="noopener">Get
+      the data</a> — the app uses the public ICIJ CSV files; appearing in them implies no
+      wrongdoing.</p>
+    <p class="muted">Every answer keeps its query trace, sources and limitations under
+      “How I got here”.</p>
+  </div>
+</dialog>
 <div class="hd">
   <h1>Offshore Investigator</h1>
   <button id="themebtn" class="btn ghost" title="Switch theme">Theme</button>
@@ -228,6 +297,9 @@
       <input id="q" name="question" autocomplete="off" placeholder="Ask about a connection…" aria-label="Your question">
       <button id="askbtn" class="btn">Ask</button>
     </div>
+    <details id="qsets"><summary id="qsetssummary">Question sets</summary>
+      <div id="qsetspane" style="max-height:40vh;overflow-y:auto;padding:4px 0 6px"></div>
+    </details>
   </div>
 </div>
 
@@ -302,6 +374,7 @@ function graphStyle() {
       "text-rotation": "autorotate", "text-background-color": "data(labelBg)", "text-background-opacity": 1,
       "text-background-padding": "3px", "text-background-shape": "roundrectangle" } },
     { selector: "edge[?soft]", style: { "line-style": "dashed", "line-color": "data(softColor)" } },
+    { selector: "edge[?undir]", style: { "target-arrow-shape": "none" } },
     { selector: "edge.dim", style: { opacity: 0.25 } },
     { selector: "edge.seledge", style: { width: 3.6, "line-color": "data(hlColor)",
       "target-arrow-color": "data(hlColor)", "z-index": 30 } }
@@ -334,7 +407,7 @@ function edgeData(e, a, b, i) {
   return { id: `e_${a}_${b}_${i}_${e.rel_type}`, source: String(a), target: String(b), rel: e.rel_type,
     link: e.link || "", role_category: e.role_category || "", status: e.status || "",
     start_date: e.start_date || "", end_date: e.end_date || "", sourceID: e.rel_sourceID || e.sourceID || "",
-    soft, label: `${e.rel_type || ""}${soft ? " (possible match)" : ""}`,
+    soft, undir: !!e.undir, label: `${e.rel_type || ""}${soft ? " (possible match)" : ""}`,
     edgeColor: T.softEdge, softColor: T.softEdge, hlColor: T.ring, edgeLabelColor: T.textPrimary, labelBg: T.labelBg };
 }
 function pathElements(nodes, edges, hubIds) {
@@ -722,6 +795,77 @@ function wirePaths(card, r, body) {
   }
 }
 
+/* Neighbour star: the centre node plus up to 4 neighbours per page from a
+   get_neighbors run (r.star in the envelope). Paging recreates ONE live mini
+   in the same cell (same model as the path minis). The tool result is
+   undirected, so these edges draw no arrowhead - a direction would be an
+   invention. Soft edges stay dashed and say "(possible match)". */
+function starBlock(r) {
+  const s = r.star || {};
+  return `<div class="block"><div class="h">Neighbours of ${esc(s.name || s.node_id)}</div>
+    ${s.note ? `<div class="muted snote">${esc(s.note)}</div>` : ""}
+    <div class="graphrow"><div class="graphwrap">
+      <div class="graphbar"><span class="muted starlbl"></span><span style="flex:1"></span>
+        <button class="btn ghost gfit">Fit</button>
+        <button class="btn ghost gfull" title="Esc exits full screen">Full screen</button>
+        <button class="btn ghost gpng">Download PNG</button>
+      </div>
+      <div class="graph"></div>
+      <div class="zoomrow" role="group" aria-label="Zoom controls">
+        <button class="zbtn zout" aria-label="Zoom out">−</button>
+        <input class="zslider" type="range" min="0" step="1" value="1000" aria-label="Zoom level"
+               title="Drag or use arrow keys. 100% = the default fit.">
+        <button class="zbtn zin" aria-label="Zoom in">+</button>
+        <span class="zpct" title="Zoom relative to the default fit">100%</span>
+        <button class="btn ghost zreset" title="Reset to the default fit">100%</button>
+      </div>
+      <div class="pager"><button class="btn ghost s-prev">Prev</button>
+        <span class="plabel muted" role="status" aria-live="polite"></span>
+        <span class="pdots s-dots" role="group" aria-label="Neighbour pages"></span>
+        <button class="btn ghost s-next">Next</button></div>
+    </div><div class="side"><div class="hint">${SIDE_HINT}</div></div></div>
+    ${legendHTML()}</div>`;
+}
+function wireStar(card, r, body) {
+  const s = r.star || {}, nbrs = s.neighbors || [];
+  const row = body.querySelector(".graphrow");
+  const wrap = body.querySelector(".graphwrap");
+  const label = body.querySelector(".plabel"), prev = body.querySelector(".s-prev"),
+        next = body.querySelector(".s-next"), dots = body.querySelector(".s-dots");
+  const pages = Math.max(1, Math.ceil(nbrs.length / 4));
+  let page = 0;
+  function showPage(p) {
+    page = p;
+    clearMinis(card);
+    const slice = nbrs.slice(page * 4, page * 4 + 4);
+    const hubIds = new Set((s.excluded_hubs || []).map(h => String(h.node_id)));
+    const byId = new Map();
+    byId.set(String(s.node_id), { node_id: s.node_id, name: s.name, labels: s.labels,
+      degree_core: s.degree_core, country_codes: s.country_codes, sourceID: s.sourceID });
+    slice.forEach(n => { if (!byId.has(String(n.node_id))) byId.set(String(n.node_id), n); });
+    const edges = slice.map(n => ({ ...n, undir: true,
+      source_id: String(s.node_id), target_id: String(n.node_id) }));
+    const mini = { el: row, cy: null, baseZoom: 1, sliderDrag: false, selected: [],
+                   rootId: String(s.node_id), rid: `${card.rid}-star${page}` };
+    wrap.querySelector(".graph").innerHTML = "";
+    wireGraphMini(card, row, pathElements([...byId.values()], edges, hubIds), mini);
+    label.textContent = `Showing ${page * 4 + 1}-${Math.min((page + 1) * 4, nbrs.length)} of ${nbrs.length}`;
+    prev.disabled = page === 0;
+    next.disabled = page >= pages - 1;
+    dots.querySelectorAll(".pdot").forEach(d =>
+      d.setAttribute("aria-current", d.dataset.p === String(page) ? "true" : "false"));
+  }
+  wrap.querySelector(".starlbl").textContent =
+    `${labelName(s.labels)} ${s.node_id} · degree ${s.degree_core ?? "?"}` +
+    (nbrs.length ? ` · ${nbrs.length} shown` : "");
+  dots.innerHTML = Array.from({ length: pages }, (_, i) =>
+    `<button class="pdot" data-p="${i}" aria-label="Neighbour page ${i + 1}">${i + 1}</button>`).join("");
+  prev.onclick = () => { if (page > 0) showPage(page - 1); };
+  next.onclick = () => { if (page < pages - 1) showPage(page + 1); };
+  dots.querySelectorAll(".pdot").forEach(d => d.onclick = () => showPage(+d.dataset.p));
+  showPage(0);
+}
+
 function render(card, r, boxText) {
   const el = card.el, body = el.querySelector(".body"), status = el.querySelector(".status");
   const reallyCached = r.cached === true && norm(r.question) === norm(boxText);
@@ -730,10 +874,11 @@ function render(card, r, boxText) {
   const nodes = (r.evidence_path || {}).nodes || [];
   const heading = r.mode === "shared" ? "Shared neighbours" : "Evidence path";
   const usePaths = Array.isArray(r.paths) && (r.paths.length > 0 || !!r.reference_path);
+  const useStar = !!r.star;
   body.innerHTML =
     `<div class="answer">${esc(r.answer || JSON.stringify(r))}</div>` +
     candidatesHTML(r.candidates) +
-    (usePaths ? pathsBlock(r) : nodes.length ? `<div class="block"><div class="h">${heading}</div>
+    (usePaths ? pathsBlock(r) : useStar ? starBlock(r) : nodes.length ? `<div class="block"><div class="h">${heading}</div>
       <div class="graphrow"><div class="graphwrap">
         <div class="graphbar"><span class="muted">${nodes.length} nodes · ${(r.evidence_path.edges || []).length} edges</span>
           <span style="flex:1"></span>
@@ -760,7 +905,9 @@ function render(card, r, boxText) {
     sharedBlock(r) + scoreBlock(r) + hubsBlock(r) + traceBlock(r) +
     `<div class="muted" style="margin-top:10px">${esc(r.limitations || "")}</div>`;
 
-  if (nodes.length && !usePaths) {
+  if (usePaths) wirePaths(card, r, body);
+  else if (useStar) wireStar(card, r, body);
+  else if (nodes.length) {
     card.pathOrder = nodes.map(n => String(n.node_id));
     card.rootId = card.pathOrder[0];
     card.selected = [];
@@ -786,7 +933,6 @@ function render(card, r, boxText) {
     const rb = body.querySelector(".replay");
     if (rb) { rb.onclick = () => replay(card); replay(card); }
   }
-  else if (usePaths) wirePaths(card, r, body);
   body.querySelectorAll(".step").forEach(s => s.querySelector("button").onclick = () => {
     if (card.cy) highlight(card, touchedIds(card, r.trace[+s.dataset.step]));
   });
@@ -806,27 +952,85 @@ function candidatesHTML(cands) {
     }).join("") + `</div>`;
 }
 
-const EXAMPLES = [
-  ["Clean pair", "Two companies joined by one recorded address link.",
-   "What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?"],
-  ["Hub-blocked pair", "A route exists only through a very high-degree hub, so the hub is excluded and named.",
-   "What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?"],
-  ["Unknown name", "A name that is not in the data: shows the plain no-record wording.",
-   "What connects Zzxq Qqq Nonexistent to BRAVO ENTERPRISES LIMITED?"],
-  ["Ambiguous name", "Two different records share this name: click the one you mean.",
-   "What is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?"],
-  ["Ambiguous name (2)", "Two officers share this name: pick one to see the recorded path.",
-   "What is the strongest recorded connection between Lee, Chung-Han and BRAVO ENTERPRISES LIMITED?"]
-];
-(function buildChips() {
+/* Examples (chips + help sidebar) and the curated question sets all come from
+   JSON files so the page and the docs cannot drift. The chips' tooltip is the
+   example's exact question text; "Try it" only fills the box - responses never
+   write to it. */
+function fillBox(q) {
+  const box = document.getElementById("q");
+  box.value = q;
+  const dlg = document.getElementById("helpside");
+  if (dlg.open) dlg.close();
+  box.focus();
+}
+async function buildExamples() {
+  let data;
+  try { data = await (await fetch("/examples.json")).json(); }
+  catch (e) { console.warn("[offshore-investigator] examples.json failed to load", e); return; }
   const wrap = document.getElementById("exchips");
-  EXAMPLES.forEach(([label, desc, q]) => {
+  const side = document.getElementById("helpexamples");
+  side.innerHTML = "";
+  (data.examples || []).forEach(ex => {
     const b = document.createElement("button");
-    b.className = "chip"; b.textContent = label; b.title = desc;
-    b.onclick = () => { document.getElementById("q").value = q; ask(false, null, null); };
+    b.className = "chip"; b.textContent = ex.label; b.title = ex.question;
+    b.onclick = () => { fillBox(ex.question); ask(false, null, null); };
     wrap.appendChild(b);
+    const div = document.createElement("div");
+    div.className = "hex";
+    div.innerHTML = `<div class="hxlabel">${esc(ex.label)}</div>
+      <div class="hq">${esc(ex.question)}</div>
+      <p><strong>Demonstrates:</strong> ${esc(ex.demonstrates)}</p>
+      <p><strong>Look for:</strong> ${esc(ex.lookFor)}</p>
+      <button class="btn ghost try">Try it</button>`;
+    div.querySelector(".try").onclick = () => fillBox(ex.question);
+    side.appendChild(div);
   });
-})();
+}
+let HEALTH = { graph: "offshore", nodes: null };
+function graphBadgeText() {
+  const g = HEALTH.graph || "offshore";
+  const n = Number.isFinite(HEALTH.nodes) ? HEALTH.nodes.toLocaleString("en-US") : "?";
+  return g === "icij" ? `Graph: icij, Offshore Leaks + Panama Papers, ${n} nodes`
+                      : `Graph: ${g}, ${n} nodes`;
+}
+function renderSets(data) {
+  const groups = {};
+  for (const e of data.entries || []) (groups[e.category] = groups[e.category] || []).push(e);
+  const html = Object.entries(groups).map(([cat, list]) => `
+    <div class="qsgroup"><div class="gname">${esc(cat)}</div>` + list.map(e => {
+      const other = e.graph !== (HEALTH.graph || "offshore");
+      const needs = e.graph === "icij" ? "the icij server (port 8001)" : "the offshore server (port 8000)";
+      return `<div class="qsrow"><button class="qbtn" title="${esc(e.why || "")}" data-q="${esc(e.text)}" ${other ? "disabled" : ""}>
+        ${e.video_pick ? `<span class="pick" title="Demo video pick">★</span> ` : ""}${esc(e.text)}</button>
+        <div class="qmeta">${esc(e.id)}${e.video_pick ? " ★" : ""} · ${esc(e.tools || "")}
+          <span class="st">${esc(e.status)}</span>${other ? `<br><span class="muted">needs ${needs}</span>` : ""}</div></div>`;
+    }).join("") + `</div>`).join("");
+  const line = `<p class="muted" style="margin:4px 0">${esc(graphBadgeText())}
+    <span class="st">★ = demo video pick</span></p>`;
+  document.getElementById("qsetspane").innerHTML = line + html;
+  document.getElementById("helpsets").innerHTML = line + html;
+  document.querySelectorAll("#qsetspane .qbtn, #helpsets .qbtn").forEach(b =>
+    b.onclick = () => fillBox(b.dataset.q));
+}
+async function buildSets() {
+  try {
+    const h = await (await fetch("/health")).json();
+    if (h && h.graph) HEALTH = h;
+  } catch (e) { /* keep the offshore default */ }
+  const badge = document.getElementById("helpbadge");
+  if (badge) badge.textContent = graphBadgeText();
+  let data;
+  try { data = await (await fetch("/questions.json")).json(); }
+  catch (e) { console.warn("[offshore-investigator] questions.json failed to load", e); return; }
+  renderSets(data);
+  document.getElementById("qsetssummary").textContent =
+    `Question sets (${(data.entries || []).length})`;
+}
+const helpdlg = document.getElementById("helpside");
+document.getElementById("helpbtn").onclick = () => helpdlg.showModal();
+document.getElementById("helpclose").onclick = () => helpdlg.close();
+buildExamples();
+buildSets();
 
 async function runAction(card, mode) {
   const [a, b] = card.selected.map(String);

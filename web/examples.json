@@ -1,0 +1,40 @@
+{
+  "_comment": "Single source of truth for the example chips AND the help sidebar. The question texts are exactly the cached demo questions - do not retype them.",
+  "examples": [
+    {
+      "id": "clean",
+      "label": "Clean pair",
+      "question": "What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?",
+      "demonstrates": "Two companies joined by one recorded intermediary link.",
+      "lookFor": "The score comes from the stepping-stone node's rarity: one intermediate node, two core edges, and the source records behind the answer."
+    },
+    {
+      "id": "hub",
+      "label": "Hub-blocked pair",
+      "question": "What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?",
+      "demonstrates": "The only route runs through a very high-degree hub, so the hub is excluded and named instead of silently dropped.",
+      "lookFor": "The 'excluded hubs' box and the dashed reference path marked 'Excluded: only reachable through a hub'."
+    },
+    {
+      "id": "unknown",
+      "label": "Unknown name",
+      "question": "What connects Zzxq Qqq Nonexistent to BRAVO ENTERPRISES LIMITED?",
+      "demonstrates": "A name that is not in the public records.",
+      "lookFor": "The plain no-record wording. The agent never invents a node id."
+    },
+    {
+      "id": "ambiguous",
+      "label": "Ambiguous name",
+      "question": "What is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?",
+      "demonstrates": "Two different records share this name, so the agent asks which one you mean.",
+      "lookFor": "The candidate buttons. Picking the Intermediary (298260) or the Entity (108040) changes the answer - click one and compare."
+    },
+    {
+      "id": "soft",
+      "label": "Possible match",
+      "question": "What is the strongest recorded connection between Eton Consultants Group Ltd and Eton Consultants Group Limited?",
+      "demonstrates": "Two similarly named records linked by a soft 'similar' edge: a possible match, never a confirmed identity.",
+      "lookFor": "The dashed 'similar (possible match)' edge and the direct-link score note ('not applicable: direct link, no intermediate nodes')."
+    }
+  ]
+}

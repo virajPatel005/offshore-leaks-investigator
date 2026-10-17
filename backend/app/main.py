@@ -154,9 +154,10 @@ def health():
 
         db = FalkorDB(host=os.getenv("FALKORDB_HOST", "localhost"),
                       port=int(os.getenv("FALKORDB_PORT", "6379")))
-        n = db.select_graph(os.getenv("GRAPH_NAME", "offshore")).query(
+        graph_name = os.getenv("GRAPH_NAME", "offshore")
+        n = db.select_graph(graph_name).query(
             "MATCH (n) RETURN count(n) LIMIT 1").result_set[0][0]
-        return {"status": "up", "nodes": n}
+        return {"status": "up", "graph": graph_name, "nodes": n}
     except Exception as ex:
         raise HTTPException(503, f"graph unreachable: {type(ex).__name__}")
 

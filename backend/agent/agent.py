@@ -98,8 +98,22 @@ def _for_llm(payload):
     return slim
 
 
-def _ground(answer, evidence, question=""):
+_STAR_KEYS = ("node_id", "name", "labels", "degree_core", "country_codes", "sourceID",
+              "hub_threshold", "allow_hub", "is_hub", "note", "total_neighbors", "shown",
+              "neighbors", "excluded_hubs", "includes_possible_match", "possible_match_edges")
+
+
+def _star_payload(p):
+    """The get_neighbors result, trimmed for the UI's neighbour star graph."""
+    return {k: p.get(k) for k in _STAR_KEYS}
+
+
+def _ground(answer, evidence, question="", pins=()):
     ids, names, degrees, terms = set(), [], set(), []
+    # An id the user typed in the question or pinned from a candidate list is
+    # grounded by definition — the user supplied it, the model is echoing it.
+    ids.update(re.findall(r"\b\d{5,}\b", question or ""))
+    ids.update(str(v) for v in pins or ())
     for payload in evidence:
         for key in ("path", "neighbors", "results", "excluded_hubs", "breakdown"):
             items = payload.get(key)
@@ -287,7 +301,8 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
 
     def compose(state):
         answer, grounding = _ground(state.get("answer", ""), state["evidence"],
-                                    state["messages"][0]["content"] if state["messages"] else "")
+                                    state["messages"][0]["content"] if state["messages"] else "",
+                                    pins=[vid for _o, vid in pins.values()])
         if not answer.strip():
             # The model sometimes ends the loop with an empty message; never
             # return silence — synthesize from tool evidence instead.
@@ -304,6 +319,7 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
                 grounding["stripped"] = "empty-model-answer-no-evidence"
         strongest = [p for p in state["evidence"] if "reference_length" in p]
         shared = [p for p in state["evidence"] if "grouped_by_edge_type" in p]
+        nbr = [p for p in state["evidence"] if "hub_threshold" in p and "neighbors" in p]
         s = strongest[-1] if strongest else {}
         path = (s.get("path") or {})
         hubs, seen_hubs = [], set()
@@ -335,6 +351,7 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
             "candidates": candidates,
             "pinned": [{"for_name": orig, "node_id": vid} for orig, vid in pins.values()],
             "evidence_path": {"nodes": path.get("nodes", []), "edges": path.get("edges", [])} if path else {},
+            "star": _star_payload(nbr[-1]) if nbr else None,
             # Total = mean D3 rarity over the intermediate nodes only (endpoints
             # are fixed by the question, so they contribute nothing). None when
             # there is no path, and also for a direct link (no intermediates) —
