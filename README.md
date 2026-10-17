@@ -151,6 +151,9 @@ All names and placeholders are in [`.env.example`](.env.example). **Never commit
 | `MAX_LLM_CALLS_PER_RUN` | hard cap on LLM calls per question (default 8) |
 | `ASK_TIMEOUT_S` / `ASK_RATE_PER_MIN` / `DAILY_LLM_CAP` | API guards: request timeout, rate, daily LLM budget |
 
+- `DAILY_LLM_CAP` defaults to `100` fresh LLM calls per day (counter: `runs/llm_usage.json`, resets at the server's local midnight) — change the value in `.env` and **restart the server** to apply it; the counter itself is re-read per request.
+- Cached demo answers neither consume the budget nor get blocked when the cap is reached; only fresh agent runs are counted and capped.
+
 ## Using the MCP server from another client
 
 The agent talks to the graph through a **stdio MCP server** (`backend/mcp_server/server.py`) that exposes read-only, size-capped tools written to be picked by *another* model:

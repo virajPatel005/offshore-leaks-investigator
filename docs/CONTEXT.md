@@ -102,3 +102,4 @@
 
 ## Open questions
 - Frontend choice (Phase 2); Track 2 memory in/out (Phase 3).
+- Before submitting: set the daily LLM cap back to 100 in .env (public demo protection), restart the server, confirm the README mentions the cap. (`DAILY_LLM_CAP` default 100, read at server start only; counter `runs/llm_usage.json`, resets at local midnight — WSL here is UTC; cached answers bypass the cap.)

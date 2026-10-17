@@ -34,6 +34,7 @@ Stretch (only if ahead): ownership chain upward from a company; possible identit
 - [ ] AI usage disclosed (AI_USAGE.md)
 - [ ] ICIJ credited; dataset disclaimer shown in the app
 - [ ] Git enabled, repo pushed, .env confirmed not committed
+- [ ] Before submitting: set the daily LLM cap back to 100 in .env (public demo protection), restart the server, and confirm the README mentions the cap.
 
 ## If behind, cut in this order
 Claude Code client demo > Track 2 memory > ownership chain > identity matching > cluster view > live deploy (fall back to local setup + video). Never cut: the working agent, the path explanation, hub-aware traversal.
