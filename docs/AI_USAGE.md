@@ -6,6 +6,7 @@ Tools: opencode (coding agent), models used through it (record the model name pe
 
 | Date | Tool / model | Task | Reviewed by Viraj (what I checked, tested or changed) |
 |---|---|---|---|
+| 2026-10-18 | opencode / opencode/deepseek-v4.1-flash-free (skills used: frontend-design, better-colors, web-design-guidelines) | Phase 3f multi-path listing (0 LLM calls): tool `paths` list + `reference_path`, agent/actions/MCP passthrough, UI "Paths" section (2x2 grid, pager, lazy Cytoscape minis), verification via `/connect` + MCP, docs | Not yet — pagination layout, per-graph zoom toolbars and both themes need a browser pass (Viraj) |
 | 2026-10-15 | opencode / muse-spark | env check + hygiene, compose 127.0.0.1, venv py3.12, smoke green | Pending: verify compose ports + smoke output |
 | 2026-10-15 | opencode / opencode/muse-spark-1.3-contributor-free | Phase 1b part 1 slice analysis script + D4 numbers (stdlib only, read-only) | Pending: check the 14-line output and D4 recommendation |
 | 2026-10-15 | opencode / opencode/muse-spark-1.3-contributor-free | handoff docs/CONTEXT.md + AGENTS.md update rule + D4 name-comparison script (stdlib only, read-only) | Pending: confirm CONTEXT.md accuracy and the D4 merge recommendation |

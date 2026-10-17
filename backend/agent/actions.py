@@ -48,17 +48,27 @@ def strongest_action(a_id, b_id):
         else:
             answer += (f". Connection relevance score {res['score']:.2f} "
                        "(higher = rarer, more informative link).")
+        n_paths = len(res.get("paths") or [])
+        if n_paths > 1:
+            answer += (f" {n_paths} recorded paths ranked, strongest first"
+                       + ("; the Paths panel shows 4 at a time, others on the next page."
+                          if n_paths > 4 else ", all shown in the Paths panel."))
+        if res.get("paths_truncated"):
+            answer += " More paths exist than the top 8 shown."
     else:
         answer = f"No hub-respecting path within {MAX_HOPS} hops between {_name(a)} and {_name(b)}."
         if res.get("reference_length"):
             hubs = ", ".join(_name(h) for h in res.get("excluded_hubs") or [])
             answer += (f" An unfiltered reference path exists at {res['reference_length']} hops"
                        + (f" through {hubs}." if hubs else "."))
+            answer += (" It is excluded from the ranking and not counted as an informative"
+                       " connection.")
     trace = [{"step": 1, "tool": "strongest_connection_tool",
               "args": {"source_id": a_id, "target_id": b_id,
                        "hub_threshold": HUB_THRESHOLD, "max_hops": MAX_HOPS},
               "result_summary": {"path_found": bool(nodes), "hops": hops,
                                  "score": round(res["score"], 3) if res.get("score") is not None else None,
+                                 "n_paths": len(res.get("paths") or []),
                                  "excluded_hubs": len(res.get("excluded_hubs") or [])},
               "cypher": res.get("cypher")}]
     return {"question": f"Strongest connection between {_name(a)} and {_name(b)}",
@@ -66,6 +76,8 @@ def strongest_action(a_id, b_id):
             "evidence_path": {"nodes": nodes, "edges": path.get("edges") or []} if nodes else {},
             "score": res.get("score"), "score_note": res.get("score_note"),
             "score_breakdown": res.get("breakdown") or [],
+            "paths": res.get("paths") or [], "paths_truncated": bool(res.get("paths_truncated")),
+            "reference_path": res.get("reference_path"),
             "excluded_hubs": res.get("excluded_hubs") or [], "shared": [],
             "trace": trace, "candidates": [], "cached": False, "limitations": LIMITATIONS}
 

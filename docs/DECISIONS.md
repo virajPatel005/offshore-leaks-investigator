@@ -51,6 +51,12 @@ Two-node actions are deterministic: `POST /connect {a, b, mode}` calls Q6/Q8 dir
 - `--drop` also wipes the full-text name indexes: run `ensure_search_indexes()` from `backend/graph/search_entity.py` after every reload; uvicorn startup alone does not recreate them (search returned 0 hits until it was run).
 - D6 deviation (user-approved): tools traverse soft edges by default (no rel_type filter ever existed). Safeguard: any result whose path/neighbour edges include a soft rel_type now returns `includes_possible_match` + `possible_match_edges` (shared list in `backend/graph/rel_types.py`) plus a note naming the types; MCP schema text says "included by default"; the agent rule labels them "possible match". Eton Consultants Group Ltd/Limited (290583–290763) verified: length-1 `similar`, flag true; T2Q1 core path flag false.
 
+## D17 Multi-path listing — ranked alternatives + excluded reference path
+- The tool already had the full candidate row set in memory; only its best row was returned. Now every distinct row (dedupe on node-id tuple + rel-type tuple) is returned best-first as `paths` (cap 8; `paths[0]` is byte-identical to the old `path`, so older callers and cached answers keep working). No new traversal: `CANDIDATE_LIMIT = PATHS_CAP + 1`, the spare row only reveals truncation (`paths_truncated`).
+- Direct-link rows keep the existing `score: null` + score_note; ranking is a stable descending sort on the mean score (none last). A hub-blocked result adds ONE `reference_path` — the existing unfiltered SPpaths reference, whose query (REF_Q) now also returns edges and hops — marked `excluded: true` with `is_hub` on its nodes; it is never mixed into the ranked pages and never counted as an informative connection (agent SYSTEM rule + deterministic action text say so explicitly).
+- UI: 4 per page in a 2x2 grid (single column narrow). Minis are card-shaped objects reusing the existing buildGraph/zoom/selection/side-card helpers unchanged; they are created on page show and destroyed on page leave, so at most 4 Cytoscape instances exist per card. The reference path renders in its own dashed "Excluded: only reachable through a hub" group. Cached answers without `paths` keep the legacy single-graph block.
+- Verified (0 LLM): T2Q1 1 path 9.35; 142424→174769 8 paths (7×11.44 + 8.33); hub-blocked 185676→123355 reference len 2; no-path 123331→123345 clean; tool latency unchanged (0.165→0.168s worst case); MCP text ≤13.4k chars.
+
 ## Open questions
 - Frontend choice (decide Phase 2)
 - Track 2 in or out (decide Phase 3)

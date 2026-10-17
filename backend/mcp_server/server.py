@@ -54,7 +54,7 @@ def _cap(result, key, maxn=LIST_CAP):
 
 def _finish(result):
     result.setdefault("limitations", LIMITATIONS)
-    for key in ("results", "neighbors", "breakdown", "excluded_hubs"):
+    for key in ("results", "neighbors", "breakdown", "excluded_hubs", "paths"):
         _cap(result, key)
     return result
 
@@ -76,7 +76,11 @@ def search_entity_tool(
 @server.tool(description=(
     "Most informative recorded path between two node_ids (use search_entity first "
     "to get them). Returns the path with node names, labels, degrees and edge details, "
-    "a per-node relevance-score breakdown, hubs excluded by the threshold, and the Cypher used."))
+    "a per-node relevance-score breakdown, hubs excluded by the threshold, the Cypher used, "
+    "plus the top up-to-8 ranked alternative paths (best first, in 'paths': nodes, edges, "
+    "length, score or score_note, possible-match flag; 'paths_truncated' says more exist). "
+    "When the hub filter blocks everything, 'reference_path' holds the unfiltered shortest "
+    "path, marked excluded, with hub nodes flagged."))
 def strongest_connection_tool(
     source_id: Annotated[str, Field(description="Start node_id from search_entity")],
     target_id: Annotated[str, Field(description="End node_id from search_entity")],

@@ -30,7 +30,8 @@ Rules:
 - Restate node ids and names exactly as tool results returned them (spelling, punctuation and case included). Never invent, guess or "correct" a name or id, and never put a question mark or an uncertain guess inside an answer.
 - State ONLY facts present in tool results. If there is no path, or the path is hub-blocked, say so plainly and name the excluded hubs.
 - If the tool result carries a score_note, the score is not applicable: state it with wording from score_note (e.g. "not applicable: direct link, no intermediate nodes") and never print a numeric score like 0.00.
-- When there is no hub-respecting path, use exactly this shape: "no hub-respecting path within N hops" (N = the max_hops used); if the reference found a longer unfiltered route, add "an unfiltered reference path exists at K hops through <named hub>". Never call the longer route "the strongest connection". Count path length in hops, never nodes.
+- When there is no hub-respecting path, use exactly this shape: "no hub-respecting path within N hops" (N = the max_hops used); if the reference found a longer unfiltered route, add "an unfiltered reference path exists at K hops through <named hub>". Never call the longer route "the strongest connection". Count path length in hops, never nodes. A reference_path under "excluded" is not an informative connection and never counts toward the ranked paths.
+- strongest_connection also lists up to 8 ranked paths, best first. In the answer, state how many recorded paths were found, mark the first as the strongest, and note that the Paths panel shows 4 at a time with the rest on the next page when there are more than 4.
 - Neutral language: say "connection relevance" and "possible match", never "suspicious" or "criminal". Appearing in the data implies no wrongdoing.
 - If a tool result has includes_possible_match=true, call those links "possible match" edges (soft, similar/same_as/underlying); they are not confirmed identities.
 - Keep the final answer short: the finding, the path in one line, the score.""
@@ -66,6 +67,9 @@ def _summarize(tool, payload):
     if tool == "strongest_connection_tool":
         p = payload.get("path") or {}
         return {"path_length": p.get("length"), "score": payload.get("score"),
+                "n_paths": len(payload.get("paths") or []),
+                "paths_truncated": bool(payload.get("paths_truncated")),
+                "reference_path_length": (payload.get("reference_path") or {}).get("length"),
                 "hubs": len(payload.get("excluded_hubs", []))}
     if tool == "search_entity_tool":
         return {"n_results": len(payload.get("results", []))}
@@ -73,6 +77,25 @@ def _summarize(tool, payload):
         return {"n_neighbors": len(payload.get("neighbors", [])),
                 "hubs": len(payload.get("excluded_hubs", []))}
     return {"keys": sorted(payload.keys())}
+
+
+def _for_llm(payload):
+    # The full candidate rows are only for the UI; shrink the ranked paths so a
+    # broad multi-path result still fits the tool-message budget (4000 chars).
+    if "reference_length" not in payload:
+        return payload
+    slim = dict(payload)
+    slim["paths"] = [{"length": p.get("length"), "score": p.get("score"),
+                      "score_note": p.get("score_note"),
+                      "includes_possible_match": p.get("includes_possible_match"),
+                      "nodes": [n.get("name") or n.get("node_id") for n in p.get("nodes") or []]}
+                     for p in payload.get("paths") or []]
+    rp = payload.get("reference_path")
+    if rp:
+        slim["reference_path"] = {"length": rp.get("length"), "excluded": True,
+                                  "nodes": [{"node_id": n.get("node_id"), "name": n.get("name"),
+                                             "is_hub": n.get("is_hub")} for n in rp.get("nodes") or []]}
+    return slim
 
 
 def _ground(answer, evidence, question=""):
@@ -90,17 +113,23 @@ def _ground(answer, evidence, question=""):
                         names.append(str(it["name"]))
                     if it.get("degree_core") is not None:
                         degrees.add(str(it["degree_core"]))
-        for n in (payload.get("path") or {}).get("nodes", []):
-            if n.get("node_id"):
-                ids.add(str(n["node_id"]))
-            if n.get("name"):
-                names.append(str(n["name"]))
-            if n.get("degree_core") is not None:
-                degrees.add(str(n["degree_core"]))
-        for edge in (payload.get("path") or {}).get("edges", []):
-            for k in ("link", "role_category", "rel_type"):
-                if edge.get(k):
-                    terms.append(str(edge[k]))
+        # Names/ids/terms from every ranked path and the reference count as
+        # grounded evidence, so the model may quote them without flags.
+        variants = [payload.get("path") or {}] + list(payload.get("paths") or [])
+        if payload.get("reference_path"):
+            variants.append(payload["reference_path"])
+        for p in variants:
+            for n in p.get("nodes", []):
+                if n.get("node_id"):
+                    ids.add(str(n["node_id"]))
+                if n.get("name"):
+                    names.append(str(n["name"]))
+                if n.get("degree_core") is not None:
+                    degrees.add(str(n["degree_core"]))
+            for edge in p.get("edges", []):
+                for k in ("link", "role_category", "rel_type"):
+                    if edge.get(k):
+                        terms.append(str(edge[k]))
         for n in payload.get("neighbors", []):
             for v in n.get("via", []):
                 for k in ("link", "role_category", "rel_type"):
@@ -240,7 +269,7 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
                             break
                 if notice:
                     payload["_notice"] = notice
-            text = ("NOTICE: " + notice + "\n" if notice else "") + json.dumps(payload)[:4000]
+            text = ("NOTICE: " + notice + "\n" if notice else "") + json.dumps(_for_llm(payload))[:4000]
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": text})
             entry = {"step": len(state["trace"]) + len(trace) + 1, "tool": tc.function.name,
                      "args": json.loads(tc.function.arguments or "{}"),
@@ -313,6 +342,9 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
             "score": s.get("score"),
             "score_note": s.get("score_note"),
             "score_breakdown": s.get("breakdown", []),
+            "paths": s.get("paths") or [],
+            "paths_truncated": bool(s.get("paths_truncated")),
+            "reference_path": s.get("reference_path"),
             "excluded_hubs": hubs,
             "trace": state["trace"],
             "grounding": grounding,

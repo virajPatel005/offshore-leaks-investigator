@@ -128,6 +128,31 @@
   .pillsm { display: inline-block; border: 1px dashed var(--border-strong); border-radius: 999px;
     padding: 1px 8px; font-size: .74rem; color: var(--text-secondary); font-weight: 500; }
 
+  /* Paths section: 4 mini graphs (2x2) with per-graph controls and side card. */
+  .pathsgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+  .pathsgrid.single { grid-template-columns: 1fr; }
+  .pcell { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px;
+    background: var(--bg-page); display: flex; flex-direction: column; gap: 6px; }
+  .pcell.excluded { border-style: dashed; border-color: var(--warn-border); }
+  @media (max-width: 720px) { .pathsgrid { grid-template-columns: 1fr; } }
+  .pcell .graph { height: 250px; }
+  .pcell:fullscreen { background: var(--bg-page); padding: 12px; display: flex; flex-direction: column; }
+  .pcell:fullscreen .graph { flex: 1; height: auto; }
+  .pcap { font-size: .82rem; color: var(--text-secondary); }
+  .pcap b { color: var(--text-primary); }
+  .pcell .graphbar .btn, .pcell .zoomrow .btn { min-height: 32px; padding: 4px 8px; font-size: .8rem; }
+  .pcell .zbtn { min-width: 32px; min-height: 32px; font-size: .95rem; }
+  .pcell .zslider { min-width: 70px; height: 32px; }
+  .pcell .zpct { min-width: 3.6em; font-size: .78rem; }
+  .pcell .side { width: auto; background: var(--bg-elevated); padding: 8px 10px; font-size: .82rem; }
+  .pager { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; flex-wrap: wrap; }
+  .pager .btn[disabled] { opacity: .45; cursor: default; }
+  .pager .btn[disabled]:hover { border-color: var(--border-strong); background: var(--bg-surface); }
+  .pdots { display: inline-flex; gap: 6px; }
+  .pdot { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border-strong);
+    background: transparent; color: var(--text-secondary); font-size: .8rem; font-variant-numeric: tabular-nums; }
+  .pdot[aria-current="true"] { border-color: var(--accent); color: var(--text-primary); font-weight: 650; }
+
   /* Legend */
   .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px;
     color: var(--text-secondary); font-size: .82rem; }
@@ -312,9 +337,7 @@ function edgeData(e, a, b, i) {
     soft, label: `${e.rel_type || ""}${soft ? " (possible match)" : ""}`,
     edgeColor: T.softEdge, softColor: T.softEdge, hlColor: T.ring, edgeLabelColor: T.textPrimary, labelBg: T.labelBg };
 }
-function pathElements(r) {
-  const hubIds = new Set((r.excluded_hubs || []).map(h => String(h.node_id)));
-  const nodes = (r.evidence_path || {}).nodes || [], edges = (r.evidence_path || {}).edges || [];
+function pathElements(nodes, edges, hubIds) {
   const els = nodes.map(n => ({ data: nodeData(n, hubIds), classes: (n.labels || []).length && !isKnown(n.labels || []) ? "unknown" : "" }));
   edges.forEach((e, i) => {
     // A chain (strongest path) pairs consecutive nodes; a star (shared
@@ -576,6 +599,129 @@ function legendHTML() {
     `<span class="key"><span class="dash"></span>possible match (soft edge)</span></div>`;
 }
 
+function pathScoreText(p) {
+  if (p.score === null || p.score === undefined) return "not applicable: direct link";
+  const n = +p.score;
+  return Number.isFinite(n) ? `score ${n.toFixed(2)}` : "score n/a";
+}
+function pathCellHTML(p, g, isRef) {
+  const cap = isRef
+    ? `<div class="pcap"><b>Reference path</b> <span class="pillsm">excluded</span> · ${p.length} hop(s)</div>`
+    : `<div class="pcap"><b>${g + 1}.</b> ${g === 0 ? "strongest" : "alternative"} · ${p.length} hop(s) · ${esc(pathScoreText(p))}` +
+      `${p.includes_possible_match ? ` <span class="pillsm">possible match</span>` : ""}</div>`;
+  return cap +
+    `<div class="graph pgraph"></div>` +
+    `<div class="graphbar"><span class="muted">${(p.nodes || []).length} nodes · ${(p.edges || []).length} edges</span><span style="flex:1"></span>` +
+      `<button class="btn ghost gfit">Fit</button>` +
+      `<button class="btn ghost gfull" title="Esc exits full screen">Full screen</button>` +
+      `<button class="btn ghost gpng">Download PNG</button></div>` +
+    `<div class="zoomrow" role="group" aria-label="Zoom controls">` +
+      `<button class="zbtn zout" aria-label="Zoom out">−</button>` +
+      `<input class="zslider" type="range" min="0" step="1" value="1000" aria-label="Zoom level"` +
+      ` title="Drag or use arrow keys. 100% = the default fit.">` +
+      `<button class="zbtn zin" aria-label="Zoom in">+</button>` +
+      `<span class="zpct" title="Zoom relative to the default fit">100%</span>` +
+      `<button class="btn ghost zreset" title="Reset to the default fit">100%</button>` +
+    `</div>` +
+    `<div class="side"><div class="hint">${SIDE_HINT}</div></div>`;
+}
+function pathsBlock(r) {
+  const paths = r.paths || [], ref = r.reference_path || null, n = paths.length;
+  const refGroup = ref ? `<div class="pref"><div class="h" style="margin-top:12px">Excluded: only reachable through a hub</div>` +
+    `<div class="pcell excluded">${pathCellHTML(ref, -1, true)}</div>` +
+    (ref.note ? `<div class="muted" style="margin-top:4px">${esc(ref.note)}</div>` : "") + `</div>` : "";
+  if (!n) {
+    return `<div class="block"><div class="h">No hub-respecting path</div>` + refGroup + legendHTML() + `</div>`;
+  }
+  return `<div class="block"><div class="h">Paths (${n})${n > 4 ? `, 4 per page` : ""}</div>` +
+    `<div class="muted">Ranked by connection relevance, strongest first.` +
+    (r.paths_truncated ? ` More recorded paths exist than the top 8 shown.` : "") + `</div>` +
+    `<div class="pathsgrid${n === 1 ? " single" : ""}"></div>` +
+    (n > 4 ? `<div class="pager"><button class="btn ghost pprev">Prev</button>` +
+      `<span class="plabel muted" role="status" aria-live="polite"></span>` +
+      `<span class="pdots" role="group" aria-label="Path pages"></span>` +
+      `<button class="btn ghost pnext">Next</button></div>` : "") +
+    refGroup + legendHTML() + `</div>`;
+}
+function wireGraphMini(card, cell, els, mini) {
+  mini.cy = buildGraph(cell.querySelector(".graph"), els, mini);
+  const zs = cell.querySelector(".zslider");
+  zs.max = String(SLIDER_STEPS);
+  zs.value = String(zoomToSlider(mini.cy.zoom()));
+  zs.oninput = () => zoomTo(mini, sliderToZoom(+zs.value));
+  zs.onpointerdown = () => { mini.sliderDrag = true; };
+  zs.onpointerup = () => { mini.sliderDrag = false; updateZoomUI(mini); };
+  cell.querySelector(".zout").onclick = () => zoomTo(mini, mini.cy.zoom() / 1.6);
+  cell.querySelector(".zin").onclick = () => zoomTo(mini, mini.cy.zoom() * 1.6);
+  cell.querySelector(".zreset").onclick = () => zoomTo(mini, mini.baseZoom || mini.cy.zoom());
+  cell.querySelector(".gfit").onclick = () => { mini.cy.fit(undefined, 20); updateZoomUI(mini); };
+  cell.querySelector(".gfull").onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else cell.requestFullscreen?.();
+  };
+  cell.querySelector(".gpng").onclick = () => downloadPng(mini);
+  updateZoomUI(mini);
+  card.minis.push(mini);
+}
+function clearMinis(card) {
+  (card.minis || []).forEach(m => { if (m.cy) m.cy.destroy(); });
+  card.minis = [];
+}
+/* Mini graphs are card-shaped objects for the existing helpers (markBase,
+   updateZoomUI, zoomTo, showNode, selectEdge, expand all read the same fields),
+   so the whole interaction model is reused without new behaviour. */
+function wirePaths(card, r, body) {
+  clearMinis(card);
+  const paths = r.paths || [];
+  const grid = body.querySelector(".pathsgrid");
+  let page = 0;
+  const pages = Math.max(1, Math.ceil(paths.length / 4));
+  function showPage(p) {
+    page = p;
+    clearMinis(card);
+    const slice = paths.slice(page * 4, page * 4 + 4);
+    grid.innerHTML = slice.map((path, k) => {
+      const g = page * 4 + k;
+      return `<div class="pcell" data-g="${g}">${pathCellHTML(path, g, false)}</div>`;
+    }).join("");
+    grid.querySelectorAll(".pcell").forEach((cell, k) => {
+      const mini = { el: cell, cy: null, baseZoom: 1, sliderDrag: false, selected: [],
+                     rootId: null, rid: `${card.rid}-p${page * 4 + k + 1}` };
+      wireGraphMini(card, cell, pathElements(slice[k].nodes || [], slice[k].edges || [], new Set()), mini);
+    });
+  }
+  if (grid) {
+    if (paths.length > 4) {
+      const prev = body.querySelector(".pprev"), next = body.querySelector(".pnext");
+      const label = body.querySelector(".plabel"), dots = body.querySelector(".pdots");
+      dots.innerHTML = Array.from({ length: pages }, (_, i) =>
+        `<button class="pdot" data-p="${i}" aria-label="Page ${i + 1}">${i + 1}</button>`).join("");
+      const upd = () => {
+        label.textContent = `Showing ${page * 4 + 1}-${Math.min((page + 1) * 4, paths.length)} of ${paths.length}`;
+        prev.disabled = page === 0;
+        next.disabled = page >= pages - 1;
+        dots.querySelectorAll(".pdot").forEach(d =>
+          d.setAttribute("aria-current", d.dataset.p === String(page) ? "true" : "false"));
+      };
+      prev.onclick = () => { if (page > 0) { showPage(page - 1); upd(); } };
+      next.onclick = () => { if (page < pages - 1) { showPage(page + 1); upd(); } };
+      dots.querySelectorAll(".pdot").forEach(d => d.onclick = () => { showPage(+d.dataset.p); upd(); });
+      showPage(0);
+      upd();
+    } else {
+      showPage(0);
+    }
+  }
+  const refCell = body.querySelector(".pcell.excluded");
+  if (refCell && r.reference_path) {
+    const rp = r.reference_path;
+    const hubIds = new Set((rp.nodes || []).filter(n => n.is_hub).map(n => String(n.node_id)));
+    const mini = { el: refCell, cy: null, baseZoom: 1, sliderDrag: false, selected: [],
+                   rootId: null, rid: `${card.rid}-ref` };
+    wireGraphMini(card, refCell, pathElements(rp.nodes || [], rp.edges || [], hubIds), mini);
+  }
+}
+
 function render(card, r, boxText) {
   const el = card.el, body = el.querySelector(".body"), status = el.querySelector(".status");
   const reallyCached = r.cached === true && norm(r.question) === norm(boxText);
@@ -583,10 +729,11 @@ function render(card, r, boxText) {
     : (reallyCached ? "[cached] " : "") + (card.live ? "Live trace done." : "Done.");
   const nodes = (r.evidence_path || {}).nodes || [];
   const heading = r.mode === "shared" ? "Shared neighbours" : "Evidence path";
+  const usePaths = Array.isArray(r.paths) && (r.paths.length > 0 || !!r.reference_path);
   body.innerHTML =
     `<div class="answer">${esc(r.answer || JSON.stringify(r))}</div>` +
     candidatesHTML(r.candidates) +
-    (nodes.length ? `<div class="block"><div class="h">${heading}</div>
+    (usePaths ? pathsBlock(r) : nodes.length ? `<div class="block"><div class="h">${heading}</div>
       <div class="graphrow"><div class="graphwrap">
         <div class="graphbar"><span class="muted">${nodes.length} nodes · ${(r.evidence_path.edges || []).length} edges</span>
           <span style="flex:1"></span>
@@ -613,11 +760,13 @@ function render(card, r, boxText) {
     sharedBlock(r) + scoreBlock(r) + hubsBlock(r) + traceBlock(r) +
     `<div class="muted" style="margin-top:10px">${esc(r.limitations || "")}</div>`;
 
-  if (nodes.length) {
+  if (nodes.length && !usePaths) {
     card.pathOrder = nodes.map(n => String(n.node_id));
     card.rootId = card.pathOrder[0];
     card.selected = [];
-    card.cy = buildGraph(body.querySelector(".graph"), pathElements(r), card);
+    card.cy = buildGraph(body.querySelector(".graph"),
+      pathElements(nodes, (r.evidence_path || {}).edges || [],
+                   new Set((r.excluded_hubs || []).map(h => String(h.node_id)))), card);
     body.querySelector(".gfit").onclick = () => { card.cy.fit(undefined, 26); updateZoomUI(card); };
     const zs = body.querySelector(".zslider");
     zs.max = String(SLIDER_STEPS);
@@ -637,6 +786,7 @@ function render(card, r, boxText) {
     const rb = body.querySelector(".replay");
     if (rb) { rb.onclick = () => replay(card); replay(card); }
   }
+  else if (usePaths) wirePaths(card, r, body);
   body.querySelectorAll(".step").forEach(s => s.querySelector("button").onclick = () => {
     if (card.cy) highlight(card, touchedIds(card, r.trace[+s.dataset.step]));
   });
@@ -754,12 +904,14 @@ function applyTheme() {
 
   document.getElementById("metatheme").content = T.bgPage;
   CARDS.forEach(card => {
-    if (!card.cy) return;
-    card.cy.nodes().forEach(n => n.data({ color: labelColor(n.data("labels")), labelColor: T.textPrimary,
-      bg: T.bgElevated, hubColor: T.catHub, ringColor: T.ring }));
-    card.cy.edges().forEach(e => e.data({ edgeColor: T.softEdge, softColor: T.softEdge,
-      hlColor: T.ring, edgeLabelColor: T.textPrimary, labelBg: T.labelBg }));
-    card.cy.style().fromJson(graphStyle()).update();
+    const graphs = (card.cy ? [card] : []).concat(card.minis || []);
+    graphs.forEach(g => {
+      g.cy.nodes().forEach(n => n.data({ color: labelColor(n.data("labels")), labelColor: T.textPrimary,
+        bg: T.bgElevated, hubColor: T.catHub, ringColor: T.ring }));
+      g.cy.edges().forEach(e => e.data({ edgeColor: T.softEdge, softColor: T.softEdge,
+        hlColor: T.ring, edgeLabelColor: T.textPrimary, labelBg: T.labelBg }));
+      g.cy.style().fromJson(graphStyle()).update();
+    });
   });
 }
 document.getElementById("themebtn").onclick = () => {
@@ -774,7 +926,10 @@ window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", ()
 document.addEventListener("fullscreenchange", () => {
   const fs = !!document.fullscreenElement;
   document.querySelectorAll(".gfull").forEach(b => b.textContent = fs ? "Exit full screen" : "Full screen");
-  CARDS.forEach(card => { if (card.cy) { card.cy.resize(); setTimeout(() => { card.cy.resize(); card.cy.fit(undefined, 30); markBase(card); }, 60); } });
+  CARDS.forEach(card => {
+    const graphs = (card.cy ? [card] : []).concat(card.minis || []);
+    graphs.forEach(g => { g.cy.resize(); setTimeout(() => { g.cy.resize(); g.cy.fit(undefined, 30); markBase(g); }, 60); });
+  });
 });
 applyTheme();
 </script>
