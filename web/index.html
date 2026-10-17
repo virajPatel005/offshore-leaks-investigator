@@ -20,18 +20,68 @@
   code { font-size: 0.85rem; }
   .hubtag { fill: #ff7b72; font-size: 11px; font-weight: bold; }
   #status { color: #8b949e; margin-top: 8px; }
+
+  /* Onboarding */
+  #howto { margin-top: 12px; }
+  #howto ol { margin: 6px 0 0 0; padding-left: 20px; }
+  #howto li { margin: 2px 0; }
+  .examples { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
+  .exwrap { max-width: 220px; }
+  .exwrap .ex { width: 100%; }
+  .exdesc { color: #8b949e; font-size: 0.82rem; margin: 0 0 6px 2px; }
+
+  /* Legend */
+  .legend { color: #c9d1d9; font-size: 0.85rem; margin-top: 8px; }
+  .legend .sw { margin-right: 10px; white-space: nowrap; }
+  .legend .sw::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; background: var(--c); vertical-align: middle; }
+  .legend .hubkey { color: #ff7b72; font-weight: bold; }
+
+  /* Disambiguation */
+  .using { background: #12261a; border-color: #2ea043; }
+  .cand { margin-top: 8px; }
+  .candbtn { background: #21262d; border: 1px solid #58a6ff; color: #e6edf3; border-radius: 6px; padding: 6px 10px; margin: 4px 4px 4px 0; }
+  .candbtn code { color: #8b949e; }
 </style>
 </head>
 <body>
 <div id="banner">Appearing in the ICIJ Offshore Leaks database does not imply wrongdoing.</div>
 <h1>Offshore Investigator</h1>
-<input id="q" placeholder="Ask about a connection…" size="80">
+
+<div id="howto" class="card">
+  <b>How to use</b>
+  <ol>
+    <li>Pick an example, or type two names.</li>
+    <li>If several matches appear, click the one you mean.</li>
+    <li>Read the path, the score and the trace below.</li>
+  </ol>
+</div>
+
+<div class="examples">
+  <div class="exwrap"><button class="ex" data-q="What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?">Clean pair</button>
+    <div class="exdesc">Two companies joined by one recorded address link.</div></div>
+  <div class="exwrap"><button class="ex" data-q="What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?">Hub-blocked pair</button>
+    <div class="exdesc">A route exists only through a very high-degree hub, so the hub is excluded and named.</div></div>
+  <div class="exwrap"><button class="ex" data-q="What connects Zzxq Qqq Nonexistent to BRAVO ENTERPRISES LIMITED?">Unknown name</button>
+    <div class="exdesc">A name that is not in the data: shows the plain no-record wording.</div></div>
+  <div class="exwrap"><button class="ex" data-q="What is the strongest recorded connection between Gary Pepper and Giltbridge Trading Limited?">Ambiguous name</button>
+    <div class="exdesc">Two different records share this name: click the one you mean.</div></div>
+  <div class="exwrap"><button class="ex" data-q="What is the strongest recorded connection between Lee, Chung-Han and BRAVO ENTERPRISES LIMITED?">Ambiguous name (2)</button>
+    <div class="exdesc">Two officers share this name: pick one to see the recorded path.</div></div>
+</div>
 <div>
-  <button class="ex" data-q="What is the strongest recorded connection between GALAXY ASIA LIMITED. and TO.CE.CO LIMITED?">Clean pair</button>
-  <button class="ex" data-q="What connects Portcullis TrustNet (BVI) Limited - Nominees to BRAVO ENTERPRISES LIMITED?">Hub-blocked pair</button>
-  <button class="ex" data-q="What connects Zzxq Qqq Nonexistent to BRAVO ENTERPRISES LIMITED?">Unknown name</button>
   <button id="askbtn">Ask (live trace)</button>
 </div>
+
+<div class="legend">
+  <b>Legend:</b>
+  <span class="sw" style="--c:#58a6ff">Entity</span>
+  <span class="sw" style="--c:#3fb950">Officer</span>
+  <span class="sw" style="--c:#d29922">Intermediary</span>
+  <span class="sw" style="--c:#bc8cff">Address</span>
+  <span class="hubkey">HUB</span> = high-degree node (excluded from the path)
+</div>
+
+<input id="q" placeholder="Ask about a connection…" size="80">
 <div id="status"></div>
 <div id="out"></div>
 <script>
@@ -67,25 +117,46 @@ function traceHTML(trace) {
     (t.cypher ? `<pre><code>${esc(Array.isArray(t.cypher) ? t.cypher.join("\n---\n") : t.cypher)}</code></pre>` : "<i>no Cypher recorded</i>") +
     `</details>`).join("");
 }
+function usingHTML() {
+  if (!usingLine) return "";
+  return `<div class="card using"><b>Using:</b> ${esc(usingLine.name)} (${esc(usingLine.label)}, ${esc(usingLine.country)})</div>`;
+}
+// Ambiguity rows become clickable buttons. for_name is the text the user typed;
+// node_id is the exact record; clicking pins name -> node_id for the re-ask.
+function candidatesHTML(cands) {
+  if (!cands || !cands.length) return "";
+  return `<div class="card"><b>Several records match — click the one you mean:</b><div class="cand">` +
+    cands.map(c => {
+      const lab = (c.labels || [])[0] || "?", cc = c.country_codes || "—";
+      return `<button class="candbtn" data-for="${esc(c.for_name)}" data-id="${esc(c.node_id)}" data-name="${esc(c.name)}" data-label="${esc(lab)}" data-country="${esc(cc)}">` +
+        `${esc(c.name)} — ${esc(lab)}, ${esc(cc)} <code>${esc(c.node_id)}</code></button>`;
+    }).join("") +
+    `</div></div>`;
+}
 function norm(s) { return String(s || "").toLowerCase().split(/\s+/).filter(Boolean).join(" "); }
 // Single source of truth: cur is the only live request. Any response whose
 // rid is not cur is stale and discarded, so overlapping requests can never
 // mix panels. The box text is written only by chip clicks, never by responses.
-let cur = 0, es = null, ctl = null;
-async function ask(live) {
+// Pins: when a candidate is clicked we re-ask with {name: node_id}; the box
+// text is left untouched and a "Using:" line identifies the chosen record.
+let cur = 0, es = null, ctl = null, usingLine = null;
+async function ask(live, pins) {
   const box = document.getElementById("q"), out = document.getElementById("out"), st = document.getElementById("status");
   const q = box.value, rid = String(++cur);
+  const reqPins = (pins && Object.keys(pins).length) ? pins : null;
+  if (!reqPins) usingLine = null;
   if (es) { es.close(); es = null; }
   if (ctl) { ctl.abort(); ctl = null; }
   out.innerHTML = ""; st.textContent = "Working…";
   if (!live) {
     ctl = new AbortController();
     try {
-      const r = await (await fetch("/ask", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: q, rid}), signal: ctl.signal})).json();
+      const r = await (await fetch("/ask", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: q, rid, pins: reqPins}), signal: ctl.signal})).json();
       if (rid === String(cur)) render(r, false, box.value);
     } catch (e) { if (rid === String(cur)) st.textContent = "Request failed."; }
   } else {
-    es = new EventSource("/ask/stream?question=" + encodeURIComponent(q) + "&rid=" + encodeURIComponent(rid) + "&fresh=1");
+    const pp = reqPins ? "&pins=" + encodeURIComponent(JSON.stringify(reqPins)) : "";
+    es = new EventSource("/ask/stream?question=" + encodeURIComponent(q) + "&rid=" + encodeURIComponent(rid) + "&fresh=1" + pp);
     es.onmessage = e => {
       const m = JSON.parse(e.data);
       if (m.rid !== String(cur)) return;
@@ -103,13 +174,21 @@ function render(r, wasStream, boxText) {
   st.textContent = (reallyCached ? "[cached] " : "") + (wasStream ? "Live trace done." : "Done.");
   const nodes = (r.evidence_path || {}).nodes || [], edges = (r.evidence_path || {}).edges || [];
   out.innerHTML =
+    usingHTML() +
     `<div class="card"><b>Answer${reallyCached ? " (cached)" : ""}</b>\n${esc(r.answer || JSON.stringify(r))}</div>` +
+    candidatesHTML(r.candidates) +
     (nodes.length ? `<div class="card"><b>Evidence path</b>${graphSVG(nodes, edges, r.excluded_hubs)}</div>` : "") +
-    ((r.score_breakdown || []).length ? `<div class="card"><b>Score breakdown (connection relevance — mean rarity over ${r.score_breakdown.length} intermediate node${r.score_breakdown.length === 1 ? "" : "s"})</b><table><tr><th>Node</th><th>Degree</th><th>Weight</th></tr>` +
+    ((r.score_breakdown || []).length ? `<div class="card"><b>Connection relevance (higher = rarer, more informative link)</b>` +
+      `<div style="color:#8b949e;font-size:.85rem">Mean rarity over ${r.score_breakdown.length} intermediate node${r.score_breakdown.length === 1 ? "" : "s"}.</div>` +
+      `<table><tr><th>Node</th><th>Degree</th><th>Weight</th></tr>` +
       r.score_breakdown.map(d => `<tr><td>${esc(d.name || d.node_id)}</td><td>${d.degree_core}</td><td>${(+d.weight).toFixed(2)}</td></tr>`).join("") +
       `</table>Total: ${r.score === null || r.score === undefined ? "n/a (no path)" : (+r.score).toFixed(2)}</div>` : "") +
     `<div class="card"><b>Excluded hubs</b>\n${(r.excluded_hubs || []).map(h => esc(`${h.name || h.node_id} (degree ${h.degree_core})`)).join("\n") || "none"}</div>` +
     `<div class="card"><b>How I got here</b>${traceHTML(r.trace)}<div style="color:#8b949e">${esc(r.limitations || "")}</div></div>`;
+  out.querySelectorAll(".candbtn").forEach(b => b.onclick = () => {
+    usingLine = {name: b.dataset.name, label: b.dataset.label, country: b.dataset.country};
+    ask(false, {[b.dataset.for]: String(b.dataset.id)});
+  });
 }
 document.querySelectorAll(".ex").forEach(b => b.onclick = () => { document.getElementById("q").value = b.dataset.q; ask(false); });
 document.getElementById("askbtn").onclick = () => ask(true);

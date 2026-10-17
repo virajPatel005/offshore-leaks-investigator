@@ -38,10 +38,28 @@ _hits = deque()
 class AskBody(BaseModel):
     question: str
     rid: str | None = None
+    pins: dict[str, str] | None = None
 
 
 def norm(q):
     return " ".join((q or "").casefold().split())
+
+
+def clean_pins(pins):
+    """Pins = {name: node_id} chosen from an ambiguity list; ids only (D13)."""
+    if not pins:
+        return None
+    out = {str(k): str(v) for k, v in pins.items() if k and v}
+    return out or None
+
+
+def cache_key(question, pins):
+    """Plain question text when unpinned (old cache stays valid); pinned runs
+    get their own key so the chosen record is part of the identity."""
+    k = norm(question)
+    if pins:
+        k += " |pins " + " ".join(f"{norm(n)}={pins[n]}" for n in sorted(pins, key=norm))
+    return k
 
 
 def _cache():
@@ -73,24 +91,27 @@ def _check_limits():
         raise HTTPException(429, "daily LLM call budget spent")
 
 
-async def _answer(question, on_step=None, rid=None, fresh=False):
+async def _answer(question, on_step=None, rid=None, fresh=False, pins=None):
     """One source of truth per request: every response echoes rid + question.
 
     Cache stores the question text but never a rid; fresh=True serves live
-    even on a cache hit (still writing the cache afterwards).
+    even on a cache hit (still writing the cache afterwards). Pins select a
+    specific record for an ambiguous name and become part of the cache key.
     """
-    key = norm(question)
+    pins = clean_pins(pins)
+    key = cache_key(question, pins)
     cache = _cache()
     if not fresh and key in cache:
         res = dict(cache[key])
         res["cached"] = True
         res["rid"] = rid
         res["question"] = question
+        res.setdefault("pins", pins or {})
         return res
     _check_limits()
     _hits.append(time.time())
     try:
-        res = await asyncio.wait_for(arun(question, on_step=on_step), timeout=REQUEST_TIMEOUT_S)
+        res = await asyncio.wait_for(arun(question, on_step=on_step, pins=pins), timeout=REQUEST_TIMEOUT_S)
     except asyncio.TimeoutError:
         raise HTTPException(504, "agent run timed out")
     except RuntimeError as ex:
@@ -110,6 +131,7 @@ async def _answer(question, on_step=None, rid=None, fresh=False):
     res["cached"] = False
     res["rid"] = rid
     res["question"] = question
+    res["pins"] = pins or {}
     return res
 
 
@@ -131,13 +153,18 @@ def health():
 async def ask(body: AskBody):
     if not body.question or not body.question.strip():
         raise HTTPException(400, "empty question")
-    return await _answer(body.question, rid=body.rid)
+    return await _answer(body.question, rid=body.rid, pins=body.pins)
 
 
 @app.get("/ask/stream")
-async def ask_stream(question: str, rid: str | None = None, fresh: bool = False):
+async def ask_stream(question: str, rid: str | None = None, fresh: bool = False,
+                     pins: str | None = None):
     if not question or not question.strip():
         raise HTTPException(400, "empty question")
+    try:
+        pin_map = json.loads(pins) if pins else None
+    except ValueError:
+        raise HTTPException(400, "pins must be a JSON object")
 
     async def gen():
         queue, loop = asyncio.Queue(), asyncio.get_running_loop()
@@ -146,7 +173,7 @@ async def ask_stream(question: str, rid: str | None = None, fresh: bool = False)
         async def runner():
             nonlocal result, error
             try:
-                result = await _answer(question, fresh=fresh,
+                result = await _answer(question, fresh=fresh, pins=pin_map,
                                        on_step=lambda e: loop.call_soon_threadsafe(queue.put_nowait, e),
                                        rid=rid)
             except HTTPException as ex:

@@ -86,6 +86,13 @@ def _ground(answer, evidence, question=""):
                         names.append(str(it["name"]))
                     if it.get("degree_core") is not None:
                         degrees.add(str(it["degree_core"]))
+        for n in (payload.get("path") or {}).get("nodes", []):
+            if n.get("node_id"):
+                ids.add(str(n["node_id"]))
+            if n.get("name"):
+                names.append(str(n["name"]))
+            if n.get("degree_core") is not None:
+                degrees.add(str(n["degree_core"]))
         for edge in (payload.get("path") or {}).get("edges", []):
             for k in ("link", "role_category", "rel_type"):
                 if edge.get(k):
@@ -146,16 +153,27 @@ class S(TypedDict):
     output: dict
 
 
-def build_graph(session, schemas, llm, hook=None):
+def build_graph(session, schemas, llm, hook=None, pins=None):
     tools = [{"type": "function", "function": {"name": t.name, "description": t.description or "",
                                                "parameters": t.input_schema}} for t in schemas]
+    # Pins come from the UI click on an ambiguity candidate: the user has
+    # already chosen the record, so the LLM must reuse that node_id and never
+    # re-search the name (D13). Keyed by normalized name.
+    pins = {_norm(k): (k, str(v)) for k, v in (pins or {}).items() if k and v}
+    pin_lines = "\n".join(f'- "{orig}" -> node_id {vid}' for orig, vid in pins.values())
+    pin_system = ("The user has already picked specific records (pinned). For each name below use "
+                  "exactly the given node_id and do NOT call search_entity for that name:\n" + pin_lines
+                  ) if pin_lines else ""
 
     async def decide(state):
         if llm.calls >= llm.max_calls:
             msg = llm.chat(state["messages"] + [
                 {"role": "user", "content": "Budget spent. Write the final answer from tool results only."}])
             return {"messages": [msg], "answer": msg.content or ""}
-        msg = llm.chat([{"role": "system", "content": SYSTEM}] + state["messages"], tools=tools)
+        system = [{"role": "system", "content": SYSTEM}]
+        if pin_system:
+            system.append({"role": "system", "content": pin_system})
+        msg = llm.chat(system + state["messages"], tools=tools)
         out = {"messages": [msg]}
         if not getattr(msg, "tool_calls", None):
             out["answer"] = msg.content or ""
@@ -170,9 +188,27 @@ def build_graph(session, schemas, llm, hook=None):
                 for r in p["results"]:
                     known.setdefault(str(r["node_id"]),
                                      (p["query"], r.get("name", ""), len(p["results"])))
+        for orig, vid in pins.values():
+            known[vid] = (orig, orig, 1)  # pinned: a single, exact resolution
         messages, trace, evidence = [], [], []
         for tc in calls:
             args = json.loads(tc.function.arguments or "{}")
+            # A pinned name is never searched again: hand the chosen node_id
+            # back directly so the run stays deterministic and cannot drift to
+            # a different record.
+            if tc.function.name == "search_entity_tool" and _norm(args.get("name", "")) in pins:
+                orig, vid = pins[_norm(args["name"])]
+                payload = {"query": args.get("name"), "pinned": True,
+                           "results": [{"node_id": vid, "name": orig, "labels": [],
+                                        "country_codes": None, "degree_core": None, "sourceID": None}],
+                           "note": f"'{orig}' is pinned to node_id {vid}; use it directly."}
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": json.dumps(payload)})
+                trace.append({"step": len(state["trace"]) + len(trace) + 1, "tool": tc.function.name,
+                              "args": args, "cypher": None, "result_summary": {"pinned": vid}})
+                evidence.append(payload)
+                if hook is not None:
+                    hook(trace[-1])
+                continue
             if tc.function.name in ("strongest_connection_tool", "shared_neighbors_tool"):
                 ids = [str(args.get(k, "")) for k in ("source_id", "target_id", "id_a", "id_b")
                        if args.get(k)]
@@ -240,8 +276,29 @@ def build_graph(session, schemas, llm, hook=None):
             if h.get("node_id") not in seen_hubs:
                 seen_hubs.add(h.get("node_id"))
                 hubs.append(h)
+        # Ambiguity = a name that had several exact matches and is not pinned.
+        # Hand the UI structured rows so it can offer click-to-pin buttons.
+        candidates, seen_c = [], set()
+        for p in state["evidence"]:
+            if p.get("pinned") or "results" not in p or "query" not in p:
+                continue
+            q = p["query"]
+            if _norm(q) in pins:
+                continue
+            exact = [r for r in p["results"] if _norm(r.get("name")) == _norm(q)]
+            if len(exact) > 1:
+                for r in exact:
+                    ck = (q, str(r.get("node_id")))
+                    if ck in seen_c:
+                        continue
+                    seen_c.add(ck)
+                    candidates.append({"for_name": q, "node_id": r.get("node_id"), "name": r.get("name"),
+                                       "labels": r.get("labels", []), "country_codes": r.get("country_codes"),
+                                       "degree_core": r.get("degree_core"), "sourceID": r.get("sourceID")})
         return {"output": {
             "answer": answer,
+            "candidates": candidates,
+            "pinned": [{"for_name": orig, "node_id": vid} for orig, vid in pins.values()],
             "evidence_path": {"nodes": path.get("nodes", []), "edges": path.get("edges", [])} if path else {},
             # Total = mean D3 rarity over the intermediate nodes only (endpoints
             # are fixed by the question, so they contribute nothing). None when
@@ -265,14 +322,14 @@ def build_graph(session, schemas, llm, hook=None):
     return g.compile()
 
 
-async def arun(question, on_step=None):
+async def arun(question, on_step=None, pins=None):
     params = StdioServerParameters(command=SERVER_CMD[0], args=SERVER_CMD[1:], cwd=".")
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
             schemas = (await session.list_tools()).tools
             llm = LLMClient()
-            app = build_graph(session, schemas, llm, hook=on_step)
+            app = build_graph(session, schemas, llm, hook=on_step, pins=pins)
             state = {"messages": [{"role": "user", "content": question}],
                      "trace": [], "evidence": [], "answer": "", "output": {}}
             out = await app.ainvoke(state)
@@ -285,5 +342,5 @@ async def arun(question, on_step=None):
             return result
 
 
-def run(question, on_step=None):
-    return asyncio.run(arun(question, on_step=on_step))
+def run(question, on_step=None, pins=None):
+    return asyncio.run(arun(question, on_step=on_step, pins=pins))

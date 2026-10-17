@@ -1,9 +1,9 @@
 # CONTEXT — handoff (living summary; PROGRESS.md stays the log)
 
 ## Current state
-- Phase: 2 done (Agent + API + UI answer Q1 end to end; gate met from the UI path).
-- Last completed: Phase 2e — six TEST_QUESTIONS fixes (rid contract, score total, search variants, empty-answer fallback, ambiguity guard, no-path wording + country grounding).
-- Next: re-grade the fixed items against TEST_QUESTIONS, then deployment/memory decision.
+- Phase: 2 done (Agent + API + UI answer Q1 end to end; gate met from the UI path); Phase 3a (UI clarity + clickable disambiguation) done.
+- Last completed: Phase 3a — ambiguity result carries a structured `candidates` list; UI renders clickable candidate buttons; clicking pins name->node_id, re-asks (box text unchanged), shows "Using: name (label, country)"; cache key includes pins; onboarding panel + per-example line + colour/hub legend; score label "Connection relevance (higher = rarer, more informative link)"; fixed grounding to trust `path.nodes`.
+- Next: re-grade the fixed items against TEST_QUESTIONS, then deployment/memory decision (Phase 3).
 
 ## How to run things
 - venv: `.venv` (system Python 3.12: `/usr/bin/python3.12 -m venv .venv`); `.venv/bin/pip install -r requirements.txt` (falkordb, python-dotenv).
@@ -28,6 +28,7 @@
 - API+UI: POST /ask, GET /ask/stream (SSE steps+final), GET /health, runs/cache.json with cached flag; 300s timeout, 20/min rate, 100/day LLM cap (env); plain HTML/JS + hand SVG (zero-dep, offline-proof) | UI path verified | confirmed
 - Ask API envelope: every response echoes rid + question; UI discards non-latest rids and aborts superseded fetches/streams; live always uses fresh=1 (bypass, still writes cache); cached badge only when echo matches box; scripts/check_ask.py asserts it.
 - Agent output carries top-level score (mean D3 rarity over intermediates; null = no path); grounding also covers degrees, question echo, link terms, country codes + name/code table, with name-token exemption.
+- Clickable disambiguation (D13): a search name with >1 exact match becomes a structured `candidates` row set (for_name, node_id, name, labels, country_codes, degree_core, sourceID); the API takes `pins` {name: node_id}, the agent feeds a pinned id straight to the path tools and hard-skips re-searching that name; unpinned cache key stays the plain question text (old cache valid), pinned runs get their own key. Grounding collects ids/names/degrees from `path.nodes` too (path endpoints are tool output).
 
 ## Data quirks (running list)
 - 519k relationship rows have empty sourceID → slice by NODE sourceID, ignore relationship sourceID.
@@ -42,7 +43,7 @@
 - FalkorDB shortestPath() is directed-only and MATCH-scoped (WITH/RETURN form); undirected var-length MATCH with WHERE all() filters after hub expansion (60s timeout at 36k hub) — prune with per-hop predicates instead. Bounded algo.SPpaths also uses DFS enumeration (timed out 60s); unbounded takes the Dijkstra fast path — never pass maxLen to the reference call.
 - MCP v2 Tool uses input_schema (snake_case); empty-string short-circuit missing-property filters fail silently — branch query shapes in Python; "already indexed" (not "already exists") is the idempotent fulltext message.
 - RediSearch: quoted phrases with punctuation raise syntax errors (never quote user input); commas/hyphens tokenize loosely (one query hit 50 noise rows) — union raw + punctuation-stripped variants, exact-first.
-- pkill -f matches your own shell cmdline (suicide, empty output) — use a bracket pattern; stale uvicorn on :8000 shows "address already in use" in runs/uvicorn.log.
+- pkill -f matches your own shell cmdline (suicide, empty output) — use a bracket pattern; stale uvicorn on :8000 shows "address already in use" in runs/uvicorn.log. The bracket trick still fails if the SAME command line also starts uvicorn (the literal "uvicorn backend.app.main" in the start half matches): run the kill and the start as SEPARATE commands, then confirm with /health.
 - 61s agent runs = Groq 429 OTPM-1000 retries on qwen3-27b on_demand (code itself ~0.5s: startup 0.5s, search 0.0s, strongest 0.2s, trivial LLM 0.7s) — provider/model cause, not worked around; cache sidesteps repeats.
 - Address records carry street text in the address field with empty names — name search cannot resolve hub addresses; test set documents this instead of routing around it.
 - Docker Desktop can be fully down (no daemon): relaunch the per-user exe, then `docker compose up -d`; background servers need setsid to survive the shell (nohup alone died).
