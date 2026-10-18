@@ -10,7 +10,7 @@ import os
 import resource
 import time
 
-DATA_DIR = os.getenv("DATA_DIR", "/home/viraj/data/icij")
+DATA_DIR = os.getenv("DATA_DIR", os.path.expanduser("~/data/icij"))
 SLICE = "Offshore Leaks"  # dataset-specific constant lives here per D11
 CORE = {"officer_of", "intermediary_of", "registered_address"}
 NODE_FILES = {  # file -> short type label

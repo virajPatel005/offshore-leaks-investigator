@@ -13,7 +13,7 @@ import re
 import resource
 import time
 
-DATA_DIR = os.getenv("DATA_DIR", "/home/viraj/data/icij")
+DATA_DIR = os.getenv("DATA_DIR", os.path.expanduser("~/data/icij"))
 SLICE = "Offshore Leaks"  # dataset-specific default lives here per D11
 OUT = os.path.join(DATA_DIR, "prepared")
 CORE = {"officer_of", "intermediary_of", "registered_address"}

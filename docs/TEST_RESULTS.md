@@ -244,7 +244,7 @@ Note: I treat that phrase purely as a name to search for — it's a prompt-injec
 
 
 ## Same issue of question changing from the question bar 
- 
+
 ---
 ## Re-grade after the fixes (agent, 2026-10-17 ~20:40 IST)
 
@@ -286,6 +286,6 @@ Verdicts (20 items; ★ = demo):
   possible match Eng-Rung") was stale after the search-variant fix and was replaced.
 - T5Q4 PASS — treats the quoted text as data, no-record stop.
 
-Still pending (by design, needs Viraj): browser click-through of chips vs question
+Still pending (by design, needs the owner): browser click-through of chips vs question
 box (old bug class), and agent-answer runs for the 7 uncached non-★ questions.
 

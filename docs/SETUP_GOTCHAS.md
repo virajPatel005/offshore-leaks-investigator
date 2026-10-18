@@ -20,8 +20,9 @@ Prerequisites-list companion (link this from the README prerequisites; README it
    The import root is `DATA_DIR/import_root` with hardlinks of `prepared/*` at
    the root and `prepared_icij/*` under `icij/`. After regenerating a prepared
    folder, refresh the hardlinks:
-   `cp -l /home/viraj/data/icij/prepared/* /home/viraj/data/icij/import_root/`
-   `cp -l /home/viraj/data/icij/prepared_icij/* /home/viraj/data/icij/import_root/icij/`
+   `cp -l "$DATA_DIR/prepared/"* "$DATA_DIR/import_root/"`
+   `cp -l "$DATA_DIR/prepared_icij/"* "$DATA_DIR/import_root/icij/"`
+   (assumes `$DATA_DIR` is exported; the verified run used the author's own paths)
 
 4) Query TIMEOUT is 1000 ms by default (image `FALKORDB_ARGS`).
    Raise before a bulk load (resets on every recreate):

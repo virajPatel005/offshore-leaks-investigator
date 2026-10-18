@@ -26,8 +26,9 @@ the server needs no keys and defaults to localhost:6379.
 
 On this machine opencode is the Windows build (the `opencode` shim in WSL
 execs `opencode.exe`), so the MCP command must pass through `wsl.exe`.
-VERIFIED 2026-10-17; folder used: `C:\Users\viraj\icij-mcp-check` (outside the
-repo, holds only `opencode.json`):
+VERIFIED 2026-10-17; folder used: `C:\Users\<your-user>\icij-mcp-check` (outside the
+repo, holds only `opencode.json`). The verified run used the author's own paths
+and folder names — substitute yours in every path below.
 
 ```json
 {
@@ -36,8 +37,8 @@ repo, holds only `opencode.json`):
     "offshore": {
       "type": "local",
       "command": ["wsl.exe", "-d", "Ubuntu",
-                  "--cd", "/home/viraj/projects/offshore-investigator",
-                  "-e", "/home/viraj/projects/offshore-investigator/.venv/bin/python",
+                  "--cd", "<repo-path>",
+                  "-e", "<repo-path>/.venv/bin/python",
                   "backend/mcp_server/server.py"],
       "enabled": true
     }
@@ -48,8 +49,8 @@ repo, holds only `opencode.json`):
 
 (The permission block is optional; it keeps the demo client to MCP tools only.)
 For a natively-installed Linux opencode, drop the `wsl.exe` wrapper and use
-`"command": ["/home/viraj/projects/offshore-investigator/.venv/bin/python",
-"backend/mcp_server/server.py"]` with `"cwd": "/home/viraj/projects/offshore-investigator"`.
+`"command": ["<repo-path>/.venv/bin/python",
+"backend/mcp_server/server.py"]` with `"cwd": "<repo-path>"`.
 Clients see the tools prefixed with the server name: `offshore_search_entity_tool`,
 `offshore_strongest_connection_tool`, `offshore_shared_neighbors_tool`.
 

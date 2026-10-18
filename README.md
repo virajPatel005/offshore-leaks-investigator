@@ -31,6 +31,14 @@ Each of these is a real UI answer card (capture list and the exact question to t
 | ![Expand neighbours and edge card](docs/img/ui-expand.png) | ![Cross-dataset same_as possible match](docs/img/ui-panama-pair.png) |
 | ![Soft edge: similar, possible match](docs/img/ui-soft-edge.png) | ![External MCP client answering from the same tools](docs/img/mcp-external-client.png) |
 
+Two detail views of cards from the table:
+
+*Second view of the clean pair — the same question with the union-graph reading: 3 hops, score 10.45.*
+![Clean pair, second view](docs/img/ui-clean-pair2.png)
+
+*The expanded graph — "Expand neighbours" on the flagship card in full screen: a second `intermediary_of` neighbour (PricewaterhouseCoopers…) joins the path.*
+![Expanded graph](docs/img/ui-expand2.png)
+
 ## Architecture
 
 ```mermaid
@@ -152,6 +160,7 @@ Then open **<http://127.0.0.1:8000>**.
   GRAPH_NAME=icij .venv/bin/python scripts/load_graph.py --drop --prepared icij --expect-nodes 838293 --expect-edges 1286362
   ```
   (Then set `GRAPH_NAME=icij` in `.env` and restart the API to demo it.)
+- **`docker-compose.yml` line 20** must point at your own `<data-dir>/import_root` folder (the committed value is the author's dev box); after any container recreate, re-run the reload checks in [`docs/SETUP_GOTCHAS.md`](docs/SETUP_GOTCHAS.md).
 - **Never recreate the container without re-checking** `docker compose ps` + `/health` — and if `nodes` reads 0, reload from the prepared folder (steps 4–6); the FalkorDB volume is mounted at both persistence paths precisely to survive recreates (see SETUP_GOTCHAS).
 
 ## Environment variables
@@ -210,6 +219,7 @@ The full registry lives in [`docs/QUERIES.md`](docs/QUERIES.md) (purpose, parame
 | `backend/tests/test_llm_guard.py` | 16 checks, **no LLM calls**: retry cap (a failing client is attempted exactly 3× then fails fast), timeout → clear error, `POST /ask` returns 429 with the human message, SSE emits one `error` event and no `final`, request-timeout → 504, and answer-grounding samples (score/degree/name checks) | `.venv/bin/python backend/tests/test_llm_guard.py` (no server needed, no keys used) |
 | `scripts/check_ask.py` | replays cached demo questions through a running API and asserts the rid + question echo (guards the "stale answer" bug class) | `curl`-style script against a live server |
 | `scripts/try_tools.py` | exercises the four graph tools directly (no LLM) | `.venv/bin/python scripts/try_tools.py` |
+| `scripts/build_questions.py` | regenerates `web/questions.json` from the two question docs — fails on an item without a graph label (docs ↔ page drift guard; never hand-edit the JSON) | `.venv/bin/python scripts/build_questions.py` |
 | `scripts/smoke_falkordb.py` | engine reachability | `.venv/bin/python scripts/smoke_falkordb.py` |
 | Manual graded set | 20 questions incl. ambiguity, hub-blocked, soft-edge and cross-dataset tiers; results and the re-grade (12 cached questions through the API, 0 LLM) in [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) | by hand in the UI/API |
 
