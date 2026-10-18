@@ -24,6 +24,7 @@ Public log. Design decisions live in docs/DECISIONS.md; queries in docs/QUERIES.
 - 2026-10-18: PEARL OCEAN cross-dataset pair fixed (auto-pair + same-id guards + possible-match wording) and verified on both graphs.
 - 2026-10-18: docs pass — every quoted score names its graph + a "Score by graph" table in the README.
 - 2026-10-18: publication cleanup (personal files removed, paths genericized, screenshots embedded).
+- 2026-10-18: intro + outro recording pages (`/intro`, `/outro`) — offline, self-contained, same tokens and theme preference as the app; title and end cards for the demo video.
 
 ## Bugs found and fixed
 - Wrong-graph answers from the agent on `icij`: the MCP subprocess never received `GRAPH_NAME` (SDK safe-env allowlist) — now forwarded explicitly; verified on both graphs.

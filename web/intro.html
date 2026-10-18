@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c1116" id="metatheme">
+<title>Offshore Investigator — About this project</title>
+<script>
+/* Applied before first paint so a stored choice never flashes the other theme. */
+(function () {
+  try {
+    var s = localStorage.getItem("oi-theme");
+    if (s === "light" || s === "dark") document.documentElement.dataset.theme = s;
+  } catch (e) { /* private mode: follow the system */ }
+})();
+</script>
+<style>
+  /* Same token set as web/index.html so all pages read as one product. */
+  :root {
+    color-scheme: dark;
+    --n-900: #0c1116; --n-800: #0f151d; --n-700: #121924; --n-600: #182130; --n-500: #26313f;
+    --n-400: #364455; --n-300: #7f8d9a; --n-200: #9aa8b6; --n-100: #dce3ea; --n-050: #f4f7fa;
+    --a-500: #2fd4c6;
+    --cat-entity: #4dabf7; --cat-officer: #51cf66; --cat-intermediary: #f2a33c;
+    --cat-address: #b197fc; --cat-merged: #f783ac; --cat-hub: #ff7b72; --cat-unknown: #98a2ad;
+
+    --bg-page: var(--n-900); --bg-surface: var(--n-700); --bg-elevated: var(--n-600);
+    --bg-hover: #1d2836;
+    --border: var(--n-500); --border-strong: var(--n-400);
+    --text-primary: var(--n-100); --text-secondary: var(--n-200); --text-muted: var(--n-300);
+    --accent: var(--a-500); --focus: var(--a-500); --ring: var(--n-050);
+    --soft-edge: var(--n-300);
+    --warn-bg: #2a2410; --warn-border: #6e5c1f; --warn-text: #f0d98a;
+    --on-accent: var(--n-900);
+    --radius: 10px; --radius-sm: 6px;
+    --mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --n-900: #f6f8fa; --n-800: #eef2f6; --n-700: #ffffff; --n-600: #e9eef3; --n-500: #d3dbe4;
+    --n-400: #a9b4c1; --n-300: #5a6875; --n-200: #3b4856; --n-100: #10161d; --n-050: #0c1116;
+    --a-500: #0d7669;
+    --cat-entity: #1868b8; --cat-officer: #2b8a3e; --cat-intermediary: #a05a00;
+    --cat-address: #6741b8; --cat-merged: #b02a5b; --cat-hub: #c92a2a; --cat-unknown: #6b7683;
+
+    --bg-hover: #e3e9ef;
+    --warn-bg: #fdf3cf; --warn-border: #d8c069; --warn-text: #574500;
+    --on-accent: #ffffff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      color-scheme: light;
+      --n-900: #f6f8fa; --n-800: #eef2f6; --n-700: #ffffff; --n-600: #e9eef3; --n-500: #d3dbe4;
+      --n-400: #a9b4c1; --n-300: #5a6875; --n-200: #3b4856; --n-100: #10161d; --n-050: #0c1116;
+      --a-500: #0d7669;
+      --cat-entity: #1868b8; --cat-officer: #2b8a3e; --cat-intermediary: #a05a00;
+      --cat-address: #6741b8; --cat-merged: #b02a5b; --cat-hub: #c92a2a; --cat-unknown: #6b7683;
+
+      --bg-hover: #e3e9ef;
+      --warn-bg: #fdf3cf; --warn-border: #d8c069; --warn-text: #574500;
+      --on-accent: #ffffff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg-page); color: var(--text-primary); font-family: var(--sans); }
+  body { margin: 0; line-height: 1.55; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1560px; margin: 0 auto; padding: 0 clamp(20px, 3vw, 56px); }
+
+  /* Header — same pattern as the app: title left, actions right. */
+  .hd { display: flex; align-items: center; gap: 12px; padding: 14px 0 8px; }
+  .hd h1 { font-size: 1.05rem; font-weight: 650; margin: 0; letter-spacing: .01em; }
+  .hd .tail { margin-left: auto; display: flex; gap: 8px; }
+  .btn { display: inline-block; background: var(--bg-surface); color: var(--text-primary);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 7px 14px; font: inherit; font-size: .9rem; text-decoration: none; cursor: pointer;
+    touch-action: manipulation; }
+  .btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+
+  /* Hero: one screen at 1920x1080 and 1366x768 (recording title card). */
+  .hero { min-height: calc(100svh - 58px); display: flex; flex-direction: column;
+    justify-content: space-between; gap: clamp(14px, 2.4vh, 34px); padding: clamp(8px, 1.6vh, 24px) 0 clamp(10px, 2vh, 26px); }
+  .herogrid { display: grid; grid-template-columns: minmax(0, 1.22fr) minmax(330px, .78fr);
+    gap: clamp(24px, 3vw, 56px); align-items: center; }
+  .kicker { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 12px; font-size: .86rem; }
+  .kicker span { border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 3px 11px; color: var(--text-secondary); background: var(--bg-surface); }
+  .kicker span.hl { color: var(--text-primary); border-color: var(--accent); }
+  h2.title { font-size: clamp(2.1rem, 3.6vw, 3.4rem); line-height: 1.06; font-weight: 720;
+    letter-spacing: -0.015em; margin: 0 0 12px; text-wrap: balance; }
+  .lede { font-size: 18px; color: var(--text-primary); max-width: 58ch; margin: 0 0 10px; }
+  .lede.sub { color: var(--text-secondary); }
+  .lede b { color: var(--text-primary); }
+  .tech { font-family: var(--mono); font-size: .84rem; color: var(--text-muted); margin: 14px 0 0; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 0; }
+  .cta { display: inline-block; text-decoration: none; border-radius: var(--radius-sm);
+    padding: 10px 18px; font-size: 1rem; font-weight: 600; border: 1px solid var(--border-strong); }
+  .cta.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .cta.primary:hover { filter: brightness(1.08); }
+  .cta.ghost { background: var(--bg-surface); color: var(--text-primary); }
+  .cta.ghost:hover { background: var(--bg-hover); border-color: var(--accent); }
+  .cta.soon { background: transparent; color: var(--text-secondary); border-style: dashed; }
+
+  /* Right panel: a drawn example of the product's actual output shape. */
+  .panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; }
+  .panel .cap { font-size: .84rem; color: var(--text-secondary); margin: 10px 0 0; }
+  .panel .cap b { color: var(--text-primary); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .stat { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 12px; }
+  .stat .num { font-size: 1.12rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .lab { font-size: .8rem; color: var(--text-secondary); }
+  .stat .lab code, .mono { font-family: var(--mono); }
+
+  .disclaim { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text);
+    border-radius: var(--radius-sm); padding: 10px 14px; font-size: .95rem; max-width: 120ch; }
+
+  /* Below the fold. */
+  main { padding-bottom: 60px; }
+  section { margin-top: clamp(34px, 5vh, 64px); }
+  h3.sec { font-size: 1.3rem; font-weight: 680; letter-spacing: -0.01em; margin: 0 0 14px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; }
+  .card h4 { margin: 0 0 6px; font-size: 1rem; font-weight: 660; }
+  .card p { margin: 0; font-size: .95rem; color: var(--text-secondary); }
+  .card p b { color: var(--text-primary); }
+  .step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; margin: 0 0 12px; align-items: start; }
+  .step .n { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--accent);
+    color: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: .92rem; }
+  .step p { margin: 3px 0 0; color: var(--text-secondary); font-size: .96rem; }
+  .step p b { color: var(--text-primary); }
+  .codetags { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+  .tag { font-family: var(--mono); font-size: .84rem; padding: 4px 11px; border-radius: 999px;
+    border: 1px solid var(--border-strong); color: var(--text-primary); background: var(--bg-elevated); }
+  .tag.soft { border-style: dashed; color: var(--text-secondary); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .prose { max-width: 92ch; color: var(--text-secondary); font-size: .96rem; }
+  .prose b { color: var(--text-primary); }
+  .prose a { color: var(--accent); }
+  footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 18px 0 26px;
+    font-size: .86rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  @media (max-width: 980px) {
+    .hero { min-height: 0; }
+    .herogrid, .two { grid-template-columns: 1fr; }
+    h2.title { font-size: clamp(1.8rem, 7vw, 2.6rem); }
+  }
+  @media (max-height: 810px) and (min-width: 981px) {
+    .hero { gap: 10px; padding-top: 4px; }
+    h2.title { font-size: clamp(1.9rem, 3vw, 2.6rem); margin-bottom: 8px; }
+    .lede { font-size: 18px; }
+    .kicker { margin-bottom: 8px; }
+    .ctas { margin-top: 10px; }
+    .panel { padding: 12px 14px; }
+    .disclaim { padding: 8px 12px; font-size: .9rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hd">
+    <h1>Offshore Investigator</h1>
+    <div class="tail">
+      <a class="btn" href="/">Open the app</a>
+      <button id="themebtn" class="btn" title="Switch theme" aria-label="Switch theme">Theme</button>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="herogrid">
+      <div>
+        <p class="kicker">
+          <span class="hl">WeMakeDevs x FalkorDB “Graph Hacks”</span>
+          <span>15–18 October 2026</span>
+          <span class="hl">Track 1 — Agents That Act on Connected Data</span>
+          <span>Author: Viraj Patel</span>
+        </p>
+        <h2 class="title">Offshore Investigator</h2>
+        <p class="lede">Ask how two records in the public ICIJ Offshore Leaks data are connected.
+          The answer is a <b>path through a FalkorDB graph</b> — ranked by an explainable
+          connection relevance score, and shown down to every hop and source record.</p>
+        <p class="lede sub">Checking connections by hand across companies, officers, intermediaries and
+          addresses in different jurisdictions is slow cross-referencing. Here <b>the graph does the
+          reasoning</b> — Cypher searches, prunes high-degree hubs and scores each path — while the
+          language model only picks tools and writes the summary.</p>
+        <div class="ctas">
+          <a class="cta primary" href="/">Start investigating</a>
+          <a class="cta ghost" href="https://github.com/virajPatel005/offshore-leaks-investigator"
+             target="_blank" rel="noopener">Read the README / GitHub</a>
+          <a class="cta soon" href="#" title="Placeholder — video link to be added">Video link coming</a>
+        </div>
+        <p class="tech">FalkorDB · Cypher · Python · FastAPI · MCP · LangGraph · Cytoscape.js</p>
+      </div>
+
+      <aside class="panel" aria-label="Example path and dataset sizes">
+        <svg viewBox="0 0 440 190" role="img" width="100%" height="auto"
+             aria-label="Example 3-hop path: a company, an intermediary, an address and a second company">
+          <line x1="66" y1="62" x2="176" y2="62" stroke="var(--border-strong)" stroke-width="1.5"/>
+          <line x1="216" y1="62" x2="326" y2="62" stroke="var(--border-strong)" stroke-width="1.5"/>
+          <line x1="366" y1="62" x2="372" y2="128" stroke="var(--border-strong)" stroke-width="1.5"/>
+          <text x="121" y="52" text-anchor="middle" fill="var(--text-muted)" font-size="10" font-family="var(--mono)">intermediary_of</text>
+          <text x="271" y="52" text-anchor="middle" fill="var(--text-muted)" font-size="10" font-family="var(--mono)">registered_address</text>
+          <text x="392" y="98" fill="var(--text-muted)" font-size="10" font-family="var(--mono)">registered_address</text>
+          <circle cx="46" cy="62" r="17" fill="var(--cat-entity)"/>
+          <text x="46" y="97" text-anchor="middle" fill="var(--text-secondary)" font-size="11">Entity (VGB)</text>
+          <circle cx="196" cy="62" r="17" fill="var(--cat-intermediary)"/>
+          <text x="196" y="97" text-anchor="middle" fill="var(--text-secondary)" font-size="11">Intermediary (HKG)</text>
+          <circle cx="346" cy="62" r="17" fill="var(--cat-address)"/>
+          <text x="346" y="97" text-anchor="middle" fill="var(--text-secondary)" font-size="11">Address (HKG)</text>
+          <circle cx="382" cy="136" r="17" fill="var(--cat-entity)"/>
+          <text x="382" y="168" text-anchor="middle" fill="var(--text-secondary)" font-size="11">Entity (HKG)</text>
+        </svg>
+        <p class="cap">The flagship example — the pair
+          <b>GALAXY ASIA LIMITED. ↔ TO.CE.CO LIMITED.</b>: a clean 3-hop path,
+          connection relevance score <b>9.35</b> on the default graph, <b>10.45</b> on the union.</p>
+        <div class="stats">
+          <div class="stat"><div class="num">278,693 / 562,700</div>
+            <div class="lab"><code>offshore</code> (default) — nodes / edges:
+              the ICIJ Offshore Leaks slice (all five jurisdictions)</div></div>
+          <div class="stat"><div class="num">838,293 / 1,286,362</div>
+            <div class="lab"><code>icij</code> — Offshore Leaks + Panama Papers on the same schema</div></div>
+        </div>
+      </aside>
+    </div>
+
+    <p class="disclaim">Appearing in the ICIJ Offshore Leaks database does not imply wrongdoing.
+      The score ranks how informative a recorded connection is.</p>
+  </div>
+
+  <main>
+    <section aria-labelledby="what">
+      <h3 class="sec" id="what">What it does</h3>
+      <div class="cards">
+        <div class="card"><h4>Hub-aware multi-hop paths</h4>
+          <p>Exact-depth path search with the <b>hub predicate on every intermediate hop</b>.
+          Each path gets an explainable connection relevance score — the mean rarity of its
+          intermediate nodes — with a per-node breakdown.</p></div>
+        <div class="card"><h4>Every answer shows its path</h4>
+          <p>The full path, relationship types, source record IDs, node degrees,
+          <b>excluded hubs</b>, the tool trace and the Cypher behind it — all from the
+          same query result. No second database.</p></div>
+        <div class="card"><h4>Ambiguity is asked, never guessed</h4>
+          <p>When a name matches several records, the agent lists the candidates with labels,
+          countries and degrees and <b>waits for your pick</b>. A pinned record is deterministic —
+          it is never silently chosen.</p></div>
+        <div class="card"><h4>Possible matches stay possible</h4>
+          <p>Soft edges (<span class="mono">similar</span>, <span class="mono">same_as</span>,
+          <span class="mono">underlying</span>) render <b>dashed</b> and are always labelled
+          “possible match”. They are never presented as a confirmed identity.</p></div>
+        <div class="card"><h4>Read-only MCP server</h4>
+          <p>Fixed, purpose-built graph tools — search, pathfinding, shared neighbours and expansion —
+          parameterized, depth-bounded and size-capped (no generic text-to-Cypher).
+          A second, external MCP client answers from the same server (verified).</p></div>
+        <div class="card"><h4>Ranked paths and expansion</h4>
+          <p>Multiple ranked paths per question, an unfiltered reference path when a hub changed
+          the answer, and click-to-expand neighbours on any node, straight from the graph.</p></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="how">
+      <h3 class="sec" id="how">How it works</h3>
+      <div class="two">
+        <div>
+          <div class="step"><div class="n">1</div><div><b>You ask</b>
+            <p>“What is the strongest recorded connection between two names?”</p></div></div>
+          <div class="step"><div class="n">2</div><div><b>Name search</b>
+            <p>The agent resolves names to records — one at a time, asking when ambiguous.</p></div></div>
+          <div class="step"><div class="n">3</div><div><b>Graph tools</b>
+            <p>Read-only MCP tools run bounded, parameterized Cypher traversals.</p></div></div>
+          <div class="step"><div class="n">4</div><div><b>Score and path</b>
+            <p>Hubs are pruned inside the traversal; the rarity-weighted score and every degree
+              come back with the path.</p></div></div>
+          <div class="step"><div class="n">5</div><div><b>Explanation</b>
+            <p>The model turns structured results into plain language — pathfinding, filtering
+              and scoring stay in Cypher plus code.</p></div></div>
+        </div>
+        <div class="prose">
+          <p><b>The graph data model.</b></p>
+          <div class="codetags">
+            <span class="tag">Entity</span><span class="tag">Officer</span>
+            <span class="tag">Intermediary</span><span class="tag">Address</span>
+          </div>
+          <div class="codetags">
+            <span class="tag">officer_of</span><span class="tag">registered_address</span>
+            <span class="tag">intermediary_of</span>
+            <span class="tag soft">similar</span><span class="tag soft">same_as</span>
+            <span class="tag soft">underlying</span>
+          </div>
+          <p>Core edges connect the four labels; soft edges are separate relationship types,
+            opt-in semantics, and always labelled a <b>possible match</b>. The 1,139 IDs that ICIJ
+            reuses across the officer and intermediary files are stored as <b>one node with both
+            labels</b> — verified identical names and country codes in all 1,139 cases.
+            Every edge keeps its raw link text, a normalized role category, dates and sourceID.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="why">
+      <h3 class="sec" id="why">Why the graph is essential</h3>
+      <div class="prose">
+        <p>The test used throughout the design: <b>if removing FalkorDB leaves a feature working,
+          that feature is wrong.</b> The hub filter lives in the Cypher <span class="mono">MATCH</span>
+          pattern, so high-degree nodes are pruned while expanding, not after; a post-hoc filter over
+          an unfiltered path list timed out at 60&nbsp;s next to the 36k-degree hub, while the
+          in-traversal prune returns in milliseconds. Everything on the screen — degrees, edge
+          fields, the score breakdown — is a returned path.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="data">
+      <h3 class="sec" id="data">Data, credits and terms</h3>
+      <div class="prose">
+        <p>Data: the <b>ICIJ Offshore Leaks Database</b> (and Panama Papers in the union graph) —
+          <a href="https://offshoreleaks.icij.org" target="_blank" rel="noopener">offshoreleaks.icij.org</a>.
+          CSV downloads, license and terms:
+          <a href="https://offshoreleaks.icij.org/pages/database" target="_blank" rel="noopener">the
+          database page</a>. Data © ICIJ and contributors; the raw CSVs are never committed to
+          the repository. Code is MIT — the license covers the code only, the data keeps its own
+          terms. This project is an independent demonstration.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="ai">
+      <h3 class="sec" id="ai">AI assistance disclosure</h3>
+      <div class="prose">
+        <p>Built by Viraj with heavy but reviewed AI assistance, logged per task in
+          <span class="mono">docs/AI_USAGE.md</span>: <b>opencode</b> used as the coding agent for
+          implementation and documentation (models: Muse Spark / DeepSeek v4.1 Flash per task, see
+          the log); <b>Claude</b> used for planning and prompt writing. Every query, score and
+          design choice was reviewed and can be explained by the author; the AI never writes
+          directly to FalkorDB without a registered, parameterized query.</p>
+      </div>
+    </section>
+
+    <footer>
+      <span>Offshore Investigator — WeMakeDevs x FalkorDB “Graph Hacks”, Track 1</span>
+      <span>Built by Viraj Patel</span>
+      <span><a href="/">Open the app</a></span>
+      <span><a href="https://github.com/virajPatel005/offshore-leaks-investigator" target="_blank" rel="noopener">GitHub</a></span>
+      <span>MIT (code only) · ICIJ data terms apply</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+const THEME_KEY = "oi-theme";
+function stored() { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } }
+function effectiveTheme() {
+  const s = stored();
+  if (s === "light" || s === "dark") return s;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+function updateThemeBtn() {
+  const mode = effectiveTheme();
+  const b = document.getElementById("themebtn");
+  b.textContent = `Theme: ${mode}`;
+  b.title = `Switch to ${mode === "dark" ? "light" : "dark"} theme`;
+  b.setAttribute("aria-label", b.title);
+}
+function applyMeta() {
+  document.getElementById("metatheme").content =
+    getComputedStyle(document.documentElement).getPropertyValue("--bg-page").trim();
+}
+document.getElementById("themebtn").onclick = () => {
+  const next = effectiveTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* private mode */ }
+  updateThemeBtn(); applyMeta();
+};
+window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+  if (!stored()) { delete document.documentElement.dataset.theme; updateThemeBtn(); applyMeta(); }
+});
+updateThemeBtn(); applyMeta();
+</script>
+</body>
+</html>

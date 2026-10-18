@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -242,6 +242,16 @@ async def ask_stream(question: str, rid: str | None = None, fresh: bool = False,
             yield f"data: {json.dumps({'type': 'final', 'rid': rid, 'result': result})}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@app.get("/intro", include_in_schema=False)
+def intro_page():
+    return FileResponse("web/intro.html")
+
+
+@app.get("/outro", include_in_schema=False)
+def outro_page():
+    return FileResponse("web/outro.html")
 
 
 app.mount("/", StaticFiles(directory="web", html=True), name="web")

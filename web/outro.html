@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c1116" id="metatheme">
+<title>Offshore Investigator — Thank you</title>
+<script>
+/* Applied before first paint so a stored choice never flashes the other theme. */
+(function () {
+  try {
+    var s = localStorage.getItem("oi-theme");
+    if (s === "light" || s === "dark") document.documentElement.dataset.theme = s;
+  } catch (e) { /* private mode: follow the system */ }
+})();
+</script>
+<style>
+  /* Same token set as web/index.html so all pages read as one product. */
+  :root {
+    color-scheme: dark;
+    --n-900: #0c1116; --n-800: #0f151d; --n-700: #121924; --n-600: #182130; --n-500: #26313f;
+    --n-400: #364455; --n-300: #7f8d9a; --n-200: #9aa8b6; --n-100: #dce3ea; --n-050: #f4f7fa;
+    --a-500: #2fd4c6;
+    --cat-entity: #4dabf7; --cat-officer: #51cf66; --cat-intermediary: #f2a33c;
+    --cat-address: #b197fc; --cat-merged: #f783ac; --cat-hub: #ff7b72; --cat-unknown: #98a2ad;
+
+    --bg-page: var(--n-900); --bg-surface: var(--n-700); --bg-elevated: var(--n-600);
+    --bg-hover: #1d2836;
+    --border: var(--n-500); --border-strong: var(--n-400);
+    --text-primary: var(--n-100); --text-secondary: var(--n-200); --text-muted: var(--n-300);
+    --accent: var(--a-500); --focus: var(--a-500); --ring: var(--n-050);
+    --soft-edge: var(--n-300);
+    --warn-bg: #2a2410; --warn-border: #6e5c1f; --warn-text: #f0d98a;
+    --on-accent: var(--n-900);
+    --radius: 10px; --radius-sm: 6px;
+    --mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --n-900: #f6f8fa; --n-800: #eef2f6; --n-700: #ffffff; --n-600: #e9eef3; --n-500: #d3dbe4;
+    --n-400: #a9b4c1; --n-300: #5a6875; --n-200: #3b4856; --n-100: #10161d; --n-050: #0c1116;
+    --a-500: #0d7669;
+    --cat-entity: #1868b8; --cat-officer: #2b8a3e; --cat-intermediary: #a05a00;
+    --cat-address: #6741b8; --cat-merged: #b02a5b; --cat-hub: #c92a2a; --cat-unknown: #6b7683;
+
+    --bg-hover: #e3e9ef;
+    --warn-bg: #fdf3cf; --warn-border: #d8c069; --warn-text: #574500;
+    --on-accent: #ffffff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      color-scheme: light;
+      --n-900: #f6f8fa; --n-800: #eef2f6; --n-700: #ffffff; --n-600: #e9eef3; --n-500: #d3dbe4;
+      --n-400: #a9b4c1; --n-300: #5a6875; --n-200: #3b4856; --n-100: #10161d; --n-050: #0c1116;
+      --a-500: #0d7669;
+      --cat-entity: #1868b8; --cat-officer: #2b8a3e; --cat-intermediary: #a05a00;
+      --cat-address: #6741b8; --cat-merged: #b02a5b; --cat-hub: #c92a2a; --cat-unknown: #6b7683;
+
+      --bg-hover: #e3e9ef;
+      --warn-bg: #fdf3cf; --warn-border: #d8c069; --warn-text: #574500;
+      --on-accent: #ffffff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg-page); color: var(--text-primary); font-family: var(--sans); }
+  body { margin: 0; line-height: 1.55; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1560px; margin: 0 auto; padding: 0 clamp(20px, 3vw, 56px); }
+
+  .hd { display: flex; align-items: center; gap: 12px; padding: 14px 0 8px; }
+  .hd h1 { font-size: 1.05rem; font-weight: 650; margin: 0; letter-spacing: .01em; }
+  .hd .tail { margin-left: auto; display: flex; gap: 8px; }
+  .btn { display: inline-block; background: var(--bg-surface); color: var(--text-primary);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 7px 14px; font: inherit; font-size: .9rem; text-decoration: none; cursor: pointer;
+    touch-action: manipulation; }
+  .btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+
+  .hero { min-height: calc(100svh - 58px); display: flex; flex-direction: column;
+    justify-content: space-between; gap: clamp(14px, 2.4vh, 34px);
+    padding: clamp(8px, 1.6vh, 24px) 0 clamp(10px, 2vh, 26px); }
+  .thanks { text-align: center; margin: 0 auto; max-width: 1080px; }
+  .thanks .kicker { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 7px;
+    margin: 0 0 10px; font-size: .86rem; }
+  .kicker span { border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 3px 11px; color: var(--text-secondary); background: var(--bg-surface); }
+  .kicker span.hl { color: var(--text-primary); border-color: var(--accent); }
+  h2.title { font-size: clamp(2.4rem, 4.2vw, 3.8rem); line-height: 1.05; font-weight: 720;
+    letter-spacing: -0.015em; margin: 0 0 12px; }
+  .recap { font-size: 18px; color: var(--text-secondary); max-width: 74ch; margin: 0 auto;
+    text-align: left; }
+  .recap li { margin: 4px 0; }
+  .recap b { color: var(--text-primary); }
+  .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 16px 0 0; }
+  .cta { display: inline-block; text-decoration: none; border-radius: var(--radius-sm);
+    padding: 10px 18px; font-size: 1rem; font-weight: 600; border: 1px solid var(--border-strong); }
+  .cta.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .cta.primary:hover { filter: brightness(1.08); }
+  .cta.ghost { background: var(--bg-surface); color: var(--text-primary); }
+  .cta.ghost:hover { background: var(--bg-hover); border-color: var(--accent); }
+  .cta.soon { background: transparent; color: var(--text-secondary); border-style: dashed; }
+
+  .fine { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px; }
+  .fine .card { background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; font-size: .88rem; color: var(--text-secondary); }
+  .fine .card b { color: var(--text-primary); }
+  .disclaim { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text);
+    border-radius: var(--radius-sm); padding: 9px 14px; font-size: .92rem; text-align: center; }
+  .built { text-align: center; font-size: .92rem; color: var(--text-muted); }
+
+  main { padding-bottom: 60px; }
+  section { margin-top: clamp(34px, 5vh, 64px); }
+  h3.sec { font-size: 1.3rem; font-weight: 680; letter-spacing: -0.01em; margin: 0 0 14px; }
+  .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; }
+  .card h4 { margin: 0 0 6px; font-size: 1rem; font-weight: 660; }
+  .card p { margin: 0; font-size: .95rem; color: var(--text-secondary); }
+  .card p b { color: var(--text-primary); }
+  .card .mono, .mono { font-family: var(--mono); }
+  .next li { margin: 6px 0; color: var(--text-secondary); font-size: .96rem; }
+  .next b { color: var(--text-primary); }
+  .next-note { font-size: .86rem; color: var(--text-muted); }
+  footer { border-top: 1px solid var(--border); margin-top: 48px; padding: 18px 0 26px;
+    font-size: .86rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  @media (max-width: 980px) {
+    .hero { min-height: 0; }
+    .fine { grid-template-columns: 1fr; }
+  }
+  @media (max-height: 810px) and (min-width: 981px) {
+    .hero { gap: 10px; padding-top: 4px; }
+    h2.title { font-size: clamp(2rem, 3.2vw, 2.8rem); margin-bottom: 8px; }
+    .fine .card { padding: 9px 12px; font-size: .84rem; }
+    .disclaim { padding: 7px 12px; font-size: .88rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hd">
+    <h1>Offshore Investigator</h1>
+    <div class="tail">
+      <a class="btn" href="/">Open the app</a>
+      <button id="themebtn" class="btn" title="Switch theme" aria-label="Switch theme">Theme</button>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="thanks">
+      <p class="kicker">
+        <span class="hl">WeMakeDevs x FalkorDB “Graph Hacks”</span>
+        <span>15–18 October 2026</span>
+        <span class="hl">Track 1 — Agents That Act on Connected Data</span>
+      </p>
+      <h2 class="title">Thank you</h2>
+      <ul class="recap">
+        <li>A connection question about two records becomes a <b>ranked path through FalkorDB</b> —
+          hubs pruned inside the traversal, sources and degrees kept with every answer.</li>
+        <li>The <b>graph does the reasoning</b>: Cypher searches, filters and scores; the language
+          model only picks tools and writes the summary.</li>
+        <li>Offshore Leaks is the default graph; adding Panama Papers grew the same schema to
+          <b>838,293 nodes / 1,286,362 edges</b> — with cross-dataset links kept as possible matches.</li>
+      </ul>
+      <div class="links">
+        <a class="cta primary" href="/">Start investigating</a>
+        <a class="cta ghost" href="https://github.com/virajPatel005/offshore-leaks-investigator"
+           target="_blank" rel="noopener">GitHub</a>
+        <a class="cta ghost" href="https://github.com/virajPatel005/offshore-leaks-investigator#readme"
+           target="_blank" rel="noopener">README</a>
+        <a class="cta soon" href="#" title="Placeholder — video link to be added">Video link coming</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="fine">
+        <div class="card">Data: the <b>ICIJ Offshore Leaks Database</b> (and Panama Papers) —
+          <a href="https://offshoreleaks.icij.org" target="_blank" rel="noopener">offshoreleaks.icij.org</a>.
+          License and terms:
+          <a href="https://offshoreleaks.icij.org/pages/database" target="_blank" rel="noopener">database
+          page</a>. Data © ICIJ and contributors.</div>
+        <div class="card"><b>License:</b> MIT (see <span class="mono">LICENSE</span>) — the code
+          only; the ICIJ data is not covered by it and keeps its own terms.</div>
+        <div class="card"><b>AI assistance:</b> built by Viraj with heavy but reviewed AI assistance
+          (opencode as coding agent, Claude for planning), logged per task in
+          <span class="mono">docs/AI_USAGE.md</span>; every query and design choice was reviewed
+          and can be explained by the author.</div>
+      </div>
+      <p class="disclaim">Appearing in the ICIJ Offshore Leaks database does not imply wrongdoing.
+        The score ranks how informative a recorded connection is.</p>
+      <p class="built">Built by <b>Viraj Patel</b>. <a href="/intro">About this project</a>.</p>
+    </div>
+  </div>
+
+  <main>
+    <section aria-labelledby="results">
+      <h3 class="sec" id="results">Key results</h3>
+      <div class="results">
+        <div class="card"><h4>Flagship cross-jurisdiction chain</h4>
+          <p><b>GALAXY ASIA LIMITED. ↔ TO.CE.CO LIMITED.</b> — a clean 3-hop path:
+          VGB company → HKG intermediary → HKG address → HKG company; score
+          <b>9.35</b> (<span class="mono">offshore</span>) / <b>10.45</b>
+          (<span class="mono">icij</span>). Two jurisdictions crossed, every hop explainable.</p></div>
+        <div class="card"><h4>Hub filter inside the traversal</h4>
+          <p>A post-hoc Python filter over an unfiltered path list <b>timed out at 60 s</b>
+          next to the 36k-degree hub; the in-traversal prune (<span class="mono">WHERE
+          n.degree_core &lt;= $hub</span> in the <span class="mono">MATCH</span> pattern)
+          <b>returns in milliseconds</b> — measured on the loaded graph.</p></div>
+        <div class="card"><h4>Panama Papers on the same schema</h4>
+          <p>The union <span class="mono">icij</span> graph — Offshore Leaks + Panama Papers,
+          <b>838,293 nodes / 1,286,362 edges</b> — answers cross-dataset questions, with the
+          single deliberate <span class="mono">same_as</span> link presented as a possible match.</p></div>
+        <div class="card"><h4>One record per ID</h4>
+          <p>The <b>1,139</b> IDs ICIJ reuses across the officer and intermediary files are stored
+          as one node with both labels (verified identical names and country codes in all
+          1,139 cases) — answers never count the same record twice.</p></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="next">
+      <h3 class="sec" id="next">What’s next</h3>
+      <ul class="next">
+        <li><b>More datasets</b> — the same schema and tools over further ICIJ releases and
+          comparable registries.</li>
+        <li><b>A hosted graph</b> — so the demo does not rely on a local Docker container.</li>
+        <li><b>Memory across sessions</b> — follow-up questions that keep the users-pinned records
+          and earlier paths in context.</li>
+      </ul>
+      <p class="next-note">These are future work — none of them is built in this submission.</p>
+    </section>
+
+    <footer>
+      <span>Offshore Investigator — WeMakeDevs x FalkorDB “Graph Hacks”, Track 1</span>
+      <span>Built by Viraj Patel</span>
+      <span><a href="/">Open the app</a> · <a href="/intro">About this project</a></span>
+      <span>MIT (code only) · ICIJ data terms apply</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+const THEME_KEY = "oi-theme";
+function stored() { try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; } }
+function effectiveTheme() {
+  const s = stored();
+  if (s === "light" || s === "dark") return s;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+function updateThemeBtn() {
+  const mode = effectiveTheme();
+  const b = document.getElementById("themebtn");
+  b.textContent = `Theme: ${mode}`;
+  b.title = `Switch to ${mode === "dark" ? "light" : "dark"} theme`;
+  b.setAttribute("aria-label", b.title);
+}
+function applyMeta() {
+  document.getElementById("metatheme").content =
+    getComputedStyle(document.documentElement).getPropertyValue("--bg-page").trim();
+}
+document.getElementById("themebtn").onclick = () => {
+  const next = effectiveTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* private mode */ }
+  updateThemeBtn(); applyMeta();
+};
+window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+  if (!stored()) { delete document.documentElement.dataset.theme; updateThemeBtn(); applyMeta(); }
+});
+updateThemeBtn(); applyMeta();
+</script>
+</body>
+</html>
