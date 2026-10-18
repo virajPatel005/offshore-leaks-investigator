@@ -11,6 +11,7 @@ import os
 
 from falkordb import FalkorDB
 
+from backend.graph.display import display_name
 from backend.graph.rel_types import possible_matches
 
 HOST = os.getenv("FALKORDB_HOST", "localhost")
@@ -46,6 +47,12 @@ def get_node(node_id):
 def get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False):
     """Immediate neighbours of node_id, hub-filtered and size-capped."""
     limit = max(1, min(int(limit), 100))
+    if not str(node_id or "").strip():
+        # Same spirit as the two-id tools' same-id guard: a degenerate id must
+        # be a structured error, never an empty-looking result.
+        return {"node_id": node_id, "neighbors": [], "excluded_hubs": [],
+                "includes_possible_match": False, "possible_match_edges": [], "cypher": [],
+                "error": "node_id is empty: pass a node_id returned by search_entity"}
     g = _db()
     center = g.query(Q_CENTER, {"id": node_id}, timeout=QUERY_TIMEOUT_MS).result_set
     if not center:
@@ -57,6 +64,7 @@ def get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False):
     is_hub = cdeg > hub_threshold
     base = {"node_id": cid, "name": cname, "labels": clabels, "degree_core": cdeg,
             "country_codes": ccc, "sourceID": csid,
+            "display_name": display_name(cname, clabels, cid, cdeg),
             "hub_threshold": hub_threshold, "allow_hub": bool(allow_hub), "is_hub": is_hub,
             "includes_possible_match": False, "possible_match_edges": [],
             "neighbors": [], "excluded_hubs": [], "cypher": [Q_CENTER]}
@@ -75,7 +83,8 @@ def get_neighbors(node_id, hub_threshold=1000, limit=25, allow_hub=False):
                  for r in rows]
     hub_rows = g.query(Q_HUB % HUB_LIST_LIMIT, {"id": node_id, "hub": hub_threshold},
                        timeout=QUERY_TIMEOUT_MS).result_set
-    excluded = [{"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3]} for r in hub_rows]
+    excluded = [{"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3],
+                 "display_name": display_name(r[1], r[2], r[0], r[3])} for r in hub_rows]
     notes = []
     if is_hub:
         notes.append(f"hub override: showing up to {limit} of {total} neighbours, high-degree ones still filtered")

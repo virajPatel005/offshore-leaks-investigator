@@ -13,6 +13,7 @@ import os
 
 from falkordb import FalkorDB
 
+from backend.graph.display import display_name
 from backend.graph.rel_types import possible_matches
 
 HOST = os.getenv("FALKORDB_HOST", "localhost")
@@ -64,7 +65,8 @@ def _weight(degree, n):
 def _node_dicts(rows, hub_threshold=None):
     out = []
     for r in rows:
-        d = {"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3], "sourceID": r[4]}
+        d = {"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3], "sourceID": r[4],
+             "display_name": display_name(r[1], r[2], r[0], r[3])}
         if hub_threshold is not None:
             d["is_hub"] = r[3] is not None and r[3] > hub_threshold
         out.append(d)
@@ -80,6 +82,17 @@ def _edge_dicts(rows):
 def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
     """Most informative hub-respecting path + the ranked `paths` list; see module docstring."""
     max_hops = max(1, int(max_hops))
+    if str(source_id) == str(target_id):
+        # Same-id "paths" would be fabricated (zero hops between a node and
+        # itself); the agent must find the second record instead.
+        return {"source_id": source_id, "target_id": target_id, "hub_threshold": hub_threshold,
+                "max_hops": max_hops, "path": None, "score": None, "breakdown": [],
+                "includes_possible_match": False, "possible_match_edges": [],
+                "paths": [], "paths_truncated": False, "reference_path": None,
+                "excluded_hubs": [], "cypher": None, "note": None,
+                "error": ("source_id and target_id are the same node: there is no connection "
+                          "between a record and itself. Call search_entity for the name to find "
+                          "both records (e.g. the same name on two datasets) and compare those.")}
     g = _db()
     n_total = g.query("MATCH (n) RETURN count(n) LIMIT 1", timeout=QUERY_TIMEOUT_MS).result_set[0][0]
     rows, depth_used, timeout_note = [], None, None
@@ -109,7 +122,8 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
     except Exception:
         ref_note = f"reference query timed out ({QUERY_TIMEOUT_MS}ms)"
     ref_nodes, ref_edges, ref_len = ref_rows[0] if ref_rows else ([], [], None)
-    excluded = [{"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3]}
+    excluded = [{"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3],
+                 "display_name": display_name(r[1], r[2], r[0], r[3])}
                 for r in ref_nodes if r[3] is not None and r[3] > hub_threshold]
     # Rank every candidate row from the first non-empty depth (they are already
     # in memory, so the list costs no extra traversal), best first. Distinct =
@@ -145,7 +159,7 @@ def strongest_connection(source_id, target_id, hub_threshold=1000, max_hops=4):
                      else "no path within max_hops")
         reference_path = None
         if blocked:
-            hub_names = [str(r[1] or r[0]) for r in ref_nodes
+            hub_names = [display_name(r[1], r[2], r[0], r[3]) for r in ref_nodes
                          if r[3] is not None and r[3] > hub_threshold]
             reference_path = {
                 "length": ref_len, "excluded": True,

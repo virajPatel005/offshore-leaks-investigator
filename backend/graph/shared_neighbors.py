@@ -10,6 +10,7 @@ import os
 
 from falkordb import FalkorDB
 
+from backend.graph.display import display_name
 from backend.graph.rel_types import possible_matches
 
 HOST = os.getenv("FALKORDB_HOST", "localhost")
@@ -34,6 +35,17 @@ def _db():
 def shared_neighbors(id_a, id_b, hub_threshold=1000, limit=20):
     """Common neighbors grouped by edge-type pair, with rarity weights."""
     limit = max(1, min(int(limit), 100))
+    if str(id_a) == str(id_b):
+        # A node is not a meaningful comparison against itself (the query would
+        # return its ordinary neighbourhood as "shared"); this must never look
+        # like a result. The agent is expected to recover by finding the second
+        # record (search_entity), e.g. the same name on another dataset.
+        return {"id_a": id_a, "id_b": id_b, "neighbors": [],
+                "includes_possible_match": False, "possible_match_edges": [],
+                "excluded_hubs": [], "cypher": [], "note": None,
+                "error": ("id_a and id_b are the same node: comparing a node with itself is "
+                          "not a comparison. Call search_entity for the name to find both "
+                          "records (e.g. the same name on two datasets) and compare those.")}
     g = _db()
     n_total = g.query("MATCH (n) RETURN count(n) LIMIT 1", timeout=QUERY_TIMEOUT_MS).result_set[0][0]
     cypher = Q % limit
@@ -52,7 +64,8 @@ def shared_neighbors(id_a, id_b, hub_threshold=1000, limit=20):
     neighbors.sort(key=lambda n: -n["weight"])
     hub_rows = g.query(HUB_Q % limit, {"x": id_a, "y": id_b, "hub": hub_threshold},
                        timeout=QUERY_TIMEOUT_MS).result_set
-    excluded = [{"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3]} for r in hub_rows]
+    excluded = [{"node_id": r[0], "name": r[1], "labels": r[2], "degree_core": r[3],
+                 "display_name": display_name(r[1], r[2], r[0], r[3])} for r in hub_rows]
     soft = possible_matches(e for n in neighbors for e in n["via"])
     note = None
     if soft:

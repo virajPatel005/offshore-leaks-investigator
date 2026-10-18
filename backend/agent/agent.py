@@ -20,12 +20,14 @@ from langgraph.graph import END, StateGraph
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from backend.graph.rel_types import SOFT_REL_TYPES
 from backend.llm.client import LLMClient
 
 SYSTEM = """You investigate public ICIJ leak data (Offshore Leaks and Panama Papers) held in a graph.
 Rules:
 - Resolve every person/company name with search_entity first; it returns node_ids. If several candidates match and none matches the user's text exactly, stop and ask the user to pick one — never silently proceed with one of them.
 - strongest_connection and shared_neighbors accept ONLY node_ids already returned by search_entity; anything else is rejected.
+- Never call a tool with the same node_id on both sides: a record is not a connection to itself and the tools reject it. If one name is the subject on both sides of the question (e.g. the same name on two datasets), call search_entity for it and use the ids it returns.
 - Use strongest_connection for the recorded path between two node_ids, shared_neighbors for what two node_ids have in common.
 - Restate node ids and names exactly as tool results returned them (spelling, punctuation and case included). Never invent, guess or "correct" a name or id, and never put a question mark or an uncertain guess inside an answer.
 - State ONLY facts present in tool results. If there is no path, or the path is hub-blocked, say so plainly and name the excluded hubs.
@@ -62,8 +64,23 @@ CC_NAME_TO_CODE = {
     "marshall islands": "MHL", "bahamas": "BHS", "barbados": "BRB", "aruba": "ABW",
 }
 
+# Identity wording that may only stand on a hard (core) link. When every
+# recorded link between the records is soft, these spans are deterministically
+# downgraded to possible-match wording and reported in the grounding flags.
+# The first pattern must run before the verb one so "are the same company"
+# becomes one clean replacement, not "are a possible match ... company".
+_IDENTITY_PATTERNS = (
+    re.compile(r"\bthe same (?:company|person|entity|firm|record|individual)\b", re.I),
+    re.compile(r"\b(are|is|were|was) the same\b", re.I),
+    re.compile(r"\bidentical\b", re.I),
+    re.compile(r"\bstrong\b"),  # bare "strong"; "strongest" has no word boundary after "strong"
+)
+_POSSIBLE_MATCH = "a possible match (not a confirmed identity)"
+
 
 def _summarize(tool, payload):
+    if payload.get("error"):
+        return {"error": str(payload["error"])[:120]}
     if tool == "strongest_connection_tool":
         p = payload.get("path") or {}
         return {"path_length": p.get("length"), "score": payload.get("score"),
@@ -72,11 +89,39 @@ def _summarize(tool, payload):
                 "reference_path_length": (payload.get("reference_path") or {}).get("length"),
                 "hubs": len(payload.get("excluded_hubs", []))}
     if tool == "search_entity_tool":
-        return {"n_results": len(payload.get("results", []))}
+        s = {"n_results": len(payload.get("results", []))}
+        if payload.get("auto_pair"):
+            s["auto_pair"] = [payload["auto_pair"]["id_a"], payload["auto_pair"]["id_b"]]
+        return s
     if tool == "shared_neighbors_tool":
         return {"n_neighbors": len(payload.get("neighbors", [])),
                 "hubs": len(payload.get("excluded_hubs", []))}
     return {"keys": sorted(payload.keys())}
+
+
+def _auto_pair(name, payload, question):
+    """A name with exactly two exact hits from different sourceIDs is the two
+    sides of a same-name question (PEARL OCEAN pattern: the same name on two
+    datasets). Resolving BOTH ids here keeps one candidate pick from pinning
+    both sides to one record; the caller adds the returned note to the tool
+    message and the trace, so the model compares the two records instead.
+    """
+    if not name or _bare(name) not in _bare(question or ""):
+        return None
+    exact = [r for r in payload.get("results", []) if _norm(r.get("name")) == _norm(name)]
+    if len(exact) != 2:
+        return None
+    if len({str(r.get("sourceID")) for r in exact}) != 2:
+        return None
+    exact.sort(key=lambda r: str(r.get("node_id")))  # deterministic id_a/id_b order
+    a, b = exact
+    note = (f"AUTO-PAIR: '{name}' has exactly two exact records from different sourceIDs — "
+            f"id_a {a['node_id']} ({a.get('sourceID')}) and id_b {b['node_id']} ({b.get('sourceID')}). "
+            "They are the two endpoints of this question. Call "
+            f"strongest_connection(source_id={a['node_id']}, target_id={b['node_id']}). "
+            "Never call shared_neighbors or get_neighbors with the same id on both sides.")
+    payload["auto_pair"] = {"id_a": str(a["node_id"]), "id_b": str(b["node_id"]), "note": note}
+    return payload["auto_pair"]
 
 
 def _for_llm(payload):
@@ -98,7 +143,7 @@ def _for_llm(payload):
     return slim
 
 
-_STAR_KEYS = ("node_id", "name", "labels", "degree_core", "country_codes", "sourceID",
+_STAR_KEYS = ("node_id", "name", "display_name", "labels", "degree_core", "country_codes", "sourceID",
               "hub_threshold", "allow_hub", "is_hub", "note", "total_neighbors", "shown",
               "neighbors", "excluded_hubs", "includes_possible_match", "possible_match_edges")
 
@@ -168,17 +213,23 @@ def _ground(answer, evidence, question="", pins=()):
     nametoks = set()
     for n in names:
         nametoks.update(_bare(n).split())
-    for tok in set(re.findall(r"\b[A-Z]{3}\b", answer)):
+    # Lookarounds, not \b: the last 3 letters of a longer uppercase word (the
+    # "TED" in "LIMITED") must never read as a country code.
+    for tok in set(re.findall(r"(?<![A-Za-z])[A-Z]{3}(?![A-Za-z])", answer)):
         if tok not in codes and tok.casefold() not in nametoks:
             flags.append(f"country code {tok} not in tool results")
     low = answer.casefold()
     for name, code in CC_NAME_TO_CODE.items():
         i = low.find(name)
-        if i >= 0:
-            window = answer[max(0, i - 60):i + len(name) + 60]
-            others = set(re.findall(r"\b[A-Z]{3}\b", window)) - {code}
-            if others:
-                flags.append(f"country mismatch: {name!r} shown with {sorted(others)}, expected {code}")
+        if i < 0:
+            continue
+        # Match on the FULL answer (so lookarounds keep their context) and keep
+        # the hits whose span falls inside the window around the country name.
+        lo, hi = max(0, i - 60), min(len(answer), i + len(name) + 60)
+        others = {m.group(0) for m in re.finditer(r"(?<![A-Za-z])[A-Z]{3}(?![A-Za-z])", answer)
+                  if lo <= m.start() and m.end() <= hi} - {code}
+        if others:
+            flags.append(f"country mismatch: {name!r} shown with {sorted(others)}, expected {code}")
     lowered = [_bare(n) for n in names] + [_bare(t) for t in terms]
     ql = _bare(question)
     for span in set(re.findall(r'"([^"]+)"', answer)):
@@ -186,9 +237,49 @@ def _ground(answer, evidence, question="", pins=()):
             continue  # echoing the user's own wording needs no verification
         if not any(_bare(span) in n for n in lowered):
             flags.append(f"unverified quoted name {span!r}")
+    # A claim about shared neighbours needs a shared_neighbors result; without
+    # one the sentence is ungrounded and removed (the model may otherwise
+    # derive "shared" from a plain neighbour list).
+    shared_removed = 0
+    if re.search(r"shared (?:neighbor|neighbour)", answer, re.I) \
+            and not any("grouped_by_edge_type" in p for p in evidence):
+        sentences = re.split(r"(?<=[.!?])\s+", answer)
+        kept = [s for s in sentences if not re.search(r"shared (?:neighbor|neighbour)", s, re.I)]
+        shared_removed = len(sentences) - len(kept)
+        answer = " ".join(kept).strip()
+    # Whitelist "strongest" via the boundary above: only a bare "strong" claim
+    # is a score-ish claim, and only downgraded when nothing but soft edges
+    # link the records.
+    soft_edge = core_edge = False
+    for payload in evidence:
+        variants = [payload.get("path") or {}] + list(payload.get("paths") or [])
+        if payload.get("reference_path"):
+            variants.append(payload["reference_path"])
+        for p in variants:
+            for e in p.get("edges") or []:
+                if e.get("rel_type") in SOFT_REL_TYPES:
+                    soft_edge = True
+                else:
+                    core_edge = True
+    soft_only = (soft_edge and not core_edge) or (
+        not soft_edge and not core_edge
+        and any(p.get("includes_possible_match") and p.get("possible_match_edges")
+                for p in evidence))
+    identity_replaced = []
+
+    def _downgrade(m):
+        verb = m.group(1) if m.lastindex else None
+        identity_replaced.append(m.group(0))
+        return f"{verb} {_POSSIBLE_MATCH}" if verb else _POSSIBLE_MATCH
+
+    if soft_only:
+        for pat in _IDENTITY_PATTERNS:
+            answer = pat.sub(_downgrade, answer)
     return answer, {"unknown_ids": [f for f in flags if f.startswith("unknown node_id")],
                     "unknown_names": [f for f in flags if f.startswith("unverified quoted")],
                     "country_flags": [f for f in flags if f.startswith("country")],
+                    "identity_claims_replaced": identity_replaced,
+                    "shared_claims_removed": shared_removed,
                     "stripped": stripped}
 
 
@@ -210,6 +301,10 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
     pin_lines = "\n".join(f'- "{orig}" -> node_id {vid}' for orig, vid in pins.values())
     pin_system = ("The user has already picked specific records (pinned). For each name below use "
                   "exactly the given node_id and do NOT call search_entity for that name:\n" + pin_lines
+                  + "\nIf one of those names is the subject on BOTH sides of the question (e.g. the "
+                    "same name on two datasets), call search_entity_tool for that name once: when "
+                    "exactly two exact records from different sourceIDs exist, the tool auto-pairs "
+                    "them and tells you the two ids to compare."
                   ) if pin_lines else ""
 
     async def decide(state):
@@ -230,6 +325,7 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
 
     async def act(state):
         calls = state["messages"][-1].tool_calls or []
+        question = state["messages"][0]["content"] if state["messages"] else ""
         # id -> (queried name, matched name, candidate count) from searches so far
         known = {}
         for p in state["evidence"]:
@@ -242,18 +338,37 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
         messages, trace, evidence = [], [], []
         for tc in calls:
             args = json.loads(tc.function.arguments or "{}")
-            # A pinned name is never searched again: hand the chosen node_id
-            # back directly so the run stays deterministic and cannot drift to
-            # a different record.
+            # A pinned name is never re-searched by the model, but the run
+            # re-checks the name once: a pick pins ONE side of a same-name
+            # question, and the other record must stay reachable (auto-pair).
             if tc.function.name == "search_entity_tool" and _norm(args.get("name", "")) in pins:
                 orig, vid = pins[_norm(args["name"])]
-                payload = {"query": args.get("name"), "pinned": True,
-                           "results": [{"node_id": vid, "name": orig, "labels": [],
-                                        "country_codes": None, "degree_core": None, "sourceID": None}],
-                           "note": f"'{orig}' is pinned to node_id {vid}; use it directly."}
-                messages.append({"role": "tool", "tool_call_id": tc.id, "content": json.dumps(payload)})
+                real = {"query": args.get("name"), "results": []}
+                try:
+                    res2 = await session.call_tool("search_entity_tool", {"name": args.get("name")})
+                    real = json.loads(res2.content[0].text)
+                except Exception:
+                    pass
+                ap = _auto_pair(args.get("name"), real, question)
+                text = ""
+                if ap:
+                    payload, text = real, ap["note"] + "\n"
+                    payload["query"] = args.get("name")
+                    payload["note"] = ap["note"]
+                    summary = {"auto_pair": [ap["id_a"], ap["id_b"]]}
+                else:
+                    row = next((r for r in real.get("results", [])
+                                if str(r.get("node_id")) == str(vid)), None)
+                    payload = {"query": args.get("name"), "pinned": True,
+                               "results": [row or {"node_id": vid, "name": orig, "labels": [],
+                                                   "country_codes": None, "degree_core": None,
+                                                   "sourceID": None}],
+                               "note": f"'{orig}' is pinned to node_id {vid}; use it directly."}
+                    summary = {"pinned": vid}
+                messages.append({"role": "tool", "tool_call_id": tc.id,
+                                 "content": text + json.dumps(payload)[:4000]})
                 trace.append({"step": len(state["trace"]) + len(trace) + 1, "tool": tc.function.name,
-                              "args": args, "cypher": None, "result_summary": {"pinned": vid}})
+                              "args": args, "cypher": real.get("cypher"), "result_summary": summary})
                 evidence.append(payload)
                 if hook is not None:
                     hook(trace[-1])
@@ -271,6 +386,11 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
                     continue
             res = await session.call_tool(tc.function.name, args)
             payload = json.loads(res.content[0].text)
+            auto_note = ""
+            if tc.function.name == "search_entity_tool":
+                ap = _auto_pair(args.get("name", ""), payload, question)
+                if ap:
+                    auto_note = ap["note"]
             notice = ""
             if tc.function.name in ("strongest_connection_tool", "shared_neighbors_tool"):
                 for k in ("source_id", "target_id", "id_a", "id_b"):
@@ -283,7 +403,8 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
                             break
                 if notice:
                     payload["_notice"] = notice
-            text = ("NOTICE: " + notice + "\n" if notice else "") + json.dumps(_for_llm(payload))[:4000]
+            text = (("NOTICE: " + notice + "\n") if notice else "") + \
+                   ((auto_note + "\n") if auto_note else "") + json.dumps(_for_llm(payload))[:4000]
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": text})
             entry = {"step": len(state["trace"]) + len(trace) + 1, "tool": tc.function.name,
                      "args": json.loads(tc.function.arguments or "{}"),
@@ -319,7 +440,12 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
                 grounding["stripped"] = "empty-model-answer-no-evidence"
         strongest = [p for p in state["evidence"] if "reference_length" in p]
         shared = [p for p in state["evidence"] if "grouped_by_edge_type" in p]
-        nbr = [p for p in state["evidence"] if "hub_threshold" in p and "neighbors" in p]
+        # Only a get_neighbors payload may drive the star: shared_neighbors also
+        # carries hub_threshold + neighbors but has no centre node (id_a/id_b),
+        # so it would render as a centre-less "unknown label" star (the PEARL
+        # bug). The star is the ONE payload with a real node_id centre.
+        nbr = [p for p in state["evidence"] if "neighbors" in p and "hub_threshold" in p
+               and p.get("node_id") is not None and "id_a" not in p]
         s = strongest[-1] if strongest else {}
         path = (s.get("path") or {})
         hubs, seen_hubs = [], set()
@@ -332,6 +458,10 @@ def build_graph(session, schemas, llm, hook=None, pins=None):
         candidates, seen_c = [], set()
         for p in state["evidence"]:
             if p.get("pinned") or "results" not in p or "query" not in p:
+                continue
+            if p.get("auto_pair"):
+                # Both records are already the two endpoints (auto-paired): a
+                # click-to-pin list would be a step backwards.
                 continue
             q = p["query"]
             if _norm(q) in pins:

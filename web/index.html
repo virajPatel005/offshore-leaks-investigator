@@ -397,8 +397,11 @@ function newCardEl(question, pinInfo) {
 function nodeData(n, hubIds) {
   const deg = n.degree_core ?? 0;
   const labels = n.labels || [];
-  return { id: String(n.node_id), label: shortName(n.name || n.node_id), full: n.name || String(n.node_id),
-    labels, known: isKnown(labels), color: labelColor(labels), labelColor: T.textPrimary,
+  // display_name (tools) covers the nameless-node case: "unnamed <label>
+  // (id, degree N)" — the side card must never read "undefined".
+  const full = n.display_name || n.name || String(n.node_id);
+  return { id: String(n.node_id), label: shortName(n.name || String(n.node_id)),
+    full, labels, known: isKnown(labels), color: labelColor(labels), labelColor: T.textPrimary,
     bg: T.bgElevated, size: nodeSize(deg), deg, country: n.country_codes || "", source: n.sourceID || "",
     hub: deg > HUB_THRESHOLD || hubIds.has(String(n.node_id)), hubColor: T.catHub, ringColor: T.ring };
 }
@@ -644,12 +647,18 @@ function sharedBlock(r) {
     `<table><tr><th>Node</th><th>Label</th><th>Degree</th><th>Weight</th><th>Via (a, b)</th></tr>` +
     s.map(n => `<tr><td>${esc(n.name || n.node_id)}</td><td>${esc((n.labels || []).join(", ") || "—")}</td>` +
       `<td class="num">${n.degree_core ?? "—"}</td><td class="num">${n.weight != null ? (+n.weight).toFixed(2) : "—"}</td>` +
-      `<td>${esc((n.via || []).map(v => `${v[0]} (${v[1]})`).join(", "))}</td></tr>`).join("") + `</table></div>`;
+      `<td>${esc((n.via || []).map(v => `${v[0]}${SOFT.has(v[0]) ? " (possible match)" : ""} (${v[1]})`).join(", "))}</td></tr>`).join("") + `</table></div>`;
+}
+function hubLine(x) {
+  const deg = x.degree_core ?? "?";
+  if (x.name) return `${x.name} (degree ${deg})`;
+  return x.display_name
+    || `unnamed ${(x.labels || []).join("+") || "node"} (${x.node_id}, degree ${deg})`;
 }
 function hubsBlock(r) {
   const h = r.excluded_hubs || [];
   return `<div class="block"><div class="h">Excluded hubs</div>` +
-    (h.length ? h.map(x => `<div class="muted">${esc(x.name || x.node_id)} (degree ${x.degree_core})</div>`).join("")
+    (h.length ? h.map(x => `<div class="muted">${esc(hubLine(x))}</div>`).join("")
               : `<div class="muted">none</div>`) + `</div>`;
 }
 function traceBlock(r) {
@@ -802,7 +811,7 @@ function wirePaths(card, r, body) {
    invention. Soft edges stay dashed and say "(possible match)". */
 function starBlock(r) {
   const s = r.star || {};
-  return `<div class="block"><div class="h">Neighbours of ${esc(s.name || s.node_id)}</div>
+  return `<div class="block"><div class="h">Neighbours of ${esc(s.display_name || s.name || s.node_id)}</div>
     ${s.note ? `<div class="muted snote">${esc(s.note)}</div>` : ""}
     <div class="graphrow"><div class="graphwrap">
       <div class="graphbar"><span class="muted starlbl"></span><span style="flex:1"></span>

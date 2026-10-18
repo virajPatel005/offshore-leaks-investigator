@@ -16,13 +16,13 @@ SHARED_LIMIT = 20
 
 
 def _name(n):
-    return n.get("name") or str(n["node_id"])
+    return n.get("display_name") or n.get("name") or str(n["node_id"])
 
 
 def _slim(n):
     return {"node_id": n["node_id"], "name": n.get("name"), "labels": n.get("labels") or [],
-            "degree_core": n.get("degree_core") or 0, "country_codes": n.get("country_codes"),
-            "sourceID": n.get("sourceID")}
+            "display_name": n.get("display_name"), "degree_core": n.get("degree_core") or 0,
+            "country_codes": n.get("country_codes"), "sourceID": n.get("sourceID")}
 
 
 def _missing(a_id, b_id, a, b):
@@ -32,6 +32,8 @@ def _missing(a_id, b_id, a, b):
 
 def strongest_action(a_id, b_id):
     """Q6 over two client-picked node ids, rendered as a thread card."""
+    if str(a_id) == str(b_id):
+        return {"error": "pick two different nodes"}
     a, b = get_node(a_id), get_node(b_id)
     err = _missing(a_id, b_id, a, b)
     if err:
@@ -84,6 +86,8 @@ def strongest_action(a_id, b_id):
 
 def shared_action(a_id, b_id):
     """Q8 over two client-picked node ids, rendered as a thread card."""
+    if str(a_id) == str(b_id):
+        return {"error": "pick two different nodes"}
     a, b = get_node(a_id), get_node(b_id)
     err = _missing(a_id, b_id, a, b)
     if err:
